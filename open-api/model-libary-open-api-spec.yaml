@@ -278,8 +278,33 @@ components:
           type: string
           example: mission-rehearsal-alpha
         timeMode:
+          $ref: '#/components/schemas/TimeMode'
+
+    TimeType:
+      type: string
+      description: The data type used for simulation time.
+      enum: [double, long]
+
+    TimeMode:
+      type: object
+      description: Configuration for simulation time and its relation to real-world time.
+      required:
+        - mode
+        - timeType
+      properties:
+        mode:
           type: string
           enum: [real-time, fast-time]
+          description: Whether the simulation runs at real-world speed or as fast as possible.
+        timeType:
+          $ref: '#/components/schemas/TimeType'
+        secondsPerSimulationTimeUnit:
+          type: number
+          format: double
+          description: >
+            The duration in real-world seconds that corresponds to one unit of simulation time.
+            Use 1.0 for 1 second, 3600.0 for 1 hour, or 0.001 for 1 millisecond.
+          example: 0.001
 
     StartModelRunResponse:
       type: object

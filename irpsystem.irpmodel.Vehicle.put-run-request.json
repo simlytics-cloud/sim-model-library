@@ -27,6 +27,10 @@
   "simulation": {
     "simulationId": "sim-irp-001",
     "federationId": "irp-demo-federation",
-    "timeMode": "fast-time"
+    "timeMode": {
+      "mode": "fast-time",
+      "timeType": "double",
+      "secondsPerSimulationTimeUnit": 1.0
+    }
   }
 }

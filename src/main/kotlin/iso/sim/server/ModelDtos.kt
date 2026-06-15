@@ -70,7 +70,13 @@ data class KafkaConfigurationDto(
 data class SimulationContextDto(
     val simulationId: String? = null,
     val federationId: String? = null,
-    val timeMode: String? = null
+    val timeMode: TimeModeDto? = null
+)
+
+data class TimeModeDto(
+    val mode: String,
+    val timeType: String,
+    val secondsPerSimulationTimeUnit: Double? = null
 )
 
 data class StartModelRunResponse(

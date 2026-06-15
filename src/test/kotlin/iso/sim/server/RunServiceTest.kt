@@ -41,6 +41,33 @@ class RunServiceTest {
     private val runService = RunService(catalogService, runExecutor = recordingExecutor)
 
     @Test
+    fun `startRun accepts valid request with new time mode`() {
+        val request = StartModelRunRequest(
+            runId = "run-vehicle-002",
+            initializationParameters = mapOf("vehicleId" to 1),
+            kafka = KafkaConfigurationDto(
+                bootstrapServers = "kafka.example.com:9092",
+                topic = "irp-system"
+            ),
+            simulation = SimulationContextDto(
+                simulationId = "sim-irp-001",
+                timeMode = TimeModeDto(
+                    mode = "fast-time",
+                    timeType = "long",
+                    secondsPerSimulationTimeUnit = 3600.0
+                )
+            )
+        )
+
+        val response = runService.startRun("irpsystem.irpmodel.Vehicle", request)
+        assertEquals("run-vehicle-002", response.runId)
+        val context = recordingExecutor.lastContext!!
+        assertEquals("fast-time", context.request.simulation?.timeMode?.mode)
+        assertEquals("long", context.request.simulation?.timeMode?.timeType)
+        assertEquals(3600.0, context.request.simulation?.timeMode?.secondsPerSimulationTimeUnit)
+    }
+
+    @Test
     fun `startRun accepts valid request and status can be fetched`() {
         val request = StartModelRunRequest(
             runId = "run-vehicle-001",
