@@ -1,0 +1,40 @@
+# Build and Output
+target/
+build/
+bin/
+*.log
+test_output.txt
+
+# Kotlin and Java
+.kotlin/
+*.class
+*.jar
+*.war
+*.ear
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# VS Code
+.vscode/
+
+# Eclipse
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Project Specific
+devs-codegen-testgen/
+!.mvn/wrapper/maven-wrapper.jar
