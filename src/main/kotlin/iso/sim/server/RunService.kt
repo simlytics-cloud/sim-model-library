@@ -76,6 +76,10 @@ class RunService(
         return runStatusStore.get(runId) ?: throw RunNotFoundException(runId)
     }
 
+    fun getRunStatusStore(): RunStatusStore {
+        return runStatusStore
+    }
+
     private fun validateRequest(request: StartModelRunRequest) {
         if (request.initializationParameters == null) {
             throw InvalidRunRequestException("'initializationParameters' is required")
