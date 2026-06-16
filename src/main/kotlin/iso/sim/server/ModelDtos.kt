@@ -53,7 +53,7 @@ data class ModelListResponse(
 
 data class StartModelRunRequest(
     val runId: String? = null,
-    val initializationParameters: Map<String, Any?>? = null,
+    val initializationParameters: JsonNode? = null,
     val kafka: KafkaConfigurationDto? = null,
     val simulation: SimulationContextDto? = null
 )

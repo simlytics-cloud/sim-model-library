@@ -31,6 +31,7 @@
 
 package iso.sim.server
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -39,12 +40,13 @@ class RunServiceTest {
     private val catalogService = ModelCatalogService(CatalogRepository())
     private val recordingExecutor = RecordingRunExecutor()
     private val runService = RunService(catalogService, runExecutor = recordingExecutor)
+    private val objectMapper = ObjectMapper()
 
     @Test
     fun `startRun accepts valid request with new time mode`() {
         val request = StartModelRunRequest(
             runId = "run-vehicle-002",
-            initializationParameters = mapOf("vehicleId" to 1),
+            initializationParameters = objectMapper.valueToTree(mapOf("vehicleId" to 1)),
             kafka = KafkaConfigurationDto(
                 bootstrapServers = "kafka.example.com:9092",
                 topic = "irp-system"
@@ -71,7 +73,7 @@ class RunServiceTest {
     fun `startRun accepts valid request and status can be fetched`() {
         val request = StartModelRunRequest(
             runId = "run-vehicle-001",
-            initializationParameters = mapOf("vehicleId" to 1),
+            initializationParameters = objectMapper.valueToTree(mapOf("vehicleId" to 1)),
             kafka = KafkaConfigurationDto(
                 bootstrapServers = "kafka.example.com:9092",
                 topic = "irp-system"
@@ -94,7 +96,7 @@ class RunServiceTest {
     @Test
     fun `startRun throws when kafka section is missing`() {
         val request = StartModelRunRequest(
-            initializationParameters = mapOf("vehicleId" to 1)
+            initializationParameters = objectMapper.valueToTree(mapOf("vehicleId" to 1))
         )
 
         val exception = org.junit.jupiter.api.Assertions.assertThrows(InvalidRunRequestException::class.java) {
