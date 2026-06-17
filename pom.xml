@@ -3,11 +3,16 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>cloud.simlytics</groupId>
-  <artifactId>model-library</artifactId>
+  <artifactId>model-library-parent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
+  <packaging>pom</packaging>
 
-  <name>model-library</name>
+  <name>model-library-parent</name>
+
+  <modules>
+    <module>model-library-server</module>
+    <module>model-library-ui</module>
+  </modules>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -20,105 +25,13 @@
     <maven.compiler.release>21</maven.compiler.release>
   </properties>
 
-  <dependencies>
-    <!-- Kotlin Standard Library -->
-    <dependency>
-      <groupId>org.jetbrains.kotlin</groupId>
-      <artifactId>kotlin-stdlib</artifactId>
-      <version>${kotlin.version}</version>
-    </dependency>
-
-    <!-- Pekko HTTP and Actors -->
-    <dependency>
-      <groupId>org.apache.pekko</groupId>
-      <artifactId>pekko-actor-typed_${scala.binary.version}</artifactId>
-      <version>${pekko.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pekko</groupId>
-      <artifactId>pekko-stream_${scala.binary.version}</artifactId>
-      <version>${pekko.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pekko</groupId>
-      <artifactId>pekko-http_${scala.binary.version}</artifactId>
-      <version>${pekko.http.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.pekko</groupId>
-      <artifactId>pekko-http-jackson_${scala.binary.version}</artifactId>
-      <version>${pekko.http.version}</version>
-    </dependency>
-
-    <!-- JSON Serialization -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.module</groupId>
-      <artifactId>jackson-module-kotlin</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-
-    <!-- Testing Dependencies -->
-    <dependency>
-      <groupId>org.jetbrains.kotlin</groupId>
-      <artifactId>kotlin-test-junit5</artifactId>
-      <version>${kotlin.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
-    <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
-    <plugins>
-      <!-- Kotlin Maven Plugin -->
-      <plugin>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
         <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-maven-plugin</artifactId>
+        <artifactId>kotlin-stdlib</artifactId>
         <version>${kotlin.version}</version>
-        <executions>
-          <execution>
-            <id>compile</id>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>test-compile</id>
-            <goals>
-              <goal>test-compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Exec Maven Plugin (for running the server) -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>3.3.0</version>
-        <configuration>
-          <mainClass>iso.sim.server.ModelLibraryServerMain</mainClass>
-        </configuration>
-      </plugin>
-
-      <!-- Surefire Plugin (for running tests) -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.5</version>
-      </plugin>
-    </plugins>
-  </build>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>

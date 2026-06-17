@@ -173,6 +173,9 @@ components:
         initializationSchema:
           $ref: '#/components/schemas/JsonSchema'
 
+        defaultParameterSet:
+          $ref: '#/components/schemas/ModelDefaultParameterSet'
+
         behaviorDescription:
           type: string
           description: Optional code, pseudo-code, or behavioral explanation.
@@ -378,6 +381,13 @@ components:
     JsonSchema:
       type: object
       description: Embedded JSON Schema 2020-12 document.
+      additionalProperties: true
+
+    ModelDefaultParameterSet:
+      type: object
+      description: |
+        Model-specific initialization default values.
+        This object must validate against the model's initializationSchema.
       additionalProperties: true
 
     ErrorResponse:
