@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;573ad0aba6abb1c9f0cb42c8237a113c6e0fa947de605e03c8f426951aa2a360;/Users/robkewley/dev/simlytics/sim-model-library/model-library-ui/src/app/models/run-config-dialog/run-config-dialog.component.ts"],
+  "sourcesContent": ["\n    .run-form {\n      display: flex;\n      flex-direction: column;\n      gap: 10px;\n      min-width: 400px;\n      padding-top: 10px;\n    }\n    mat-form-field {\n      width: 100%;\n    }\n    h3 {\n      margin-top: 15px;\n      margin-bottom: 5px;\n      border-bottom: 1px solid #ccc;\n    }\n    .schema-error {\n      margin: 0;\n      color: #c62828;\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,kBAAgB;AAChB,OAAK;AACL,aAAW;AACX,eAAa;AACf;AACA;AACE,SAAO;AACT;AACA;AACE,cAAY;AACZ,iBAAe;AACf,iBAAe,IAAI,MAAM;AAC3B;AACA,CAAC;AACC,UAAQ;AACR,SAAO;AACT;",
+  "names": []
+}

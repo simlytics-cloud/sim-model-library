@@ -1,0 +1,98 @@
+{
+  "models": [
+    {
+      "modelId": "MissionArchitecture.Sim.MissionModel.MissionPackage.BifrostAdapter",
+      "name": "BifrostAdapter",
+      "description": "DEVS atomic model adapter for Bifrost integration, handling orders and system status reports.",
+      "implementationLanguage": "Java",
+      "inputPorts": [
+        {
+          "name": "ordersToBifrost",
+          "direction": "input",
+          "messageType": "Message",
+          "description": "Receives orders to be forwarded to Bifrost."
+        },
+        {
+          "name": "reportsToBifrost",
+          "direction": "input",
+          "messageType": "SystemStatus",
+          "description": "Receives system status reports to be forwarded to Bifrost."
+        }
+      ],
+      "outputPorts": [
+        {
+          "name": "statusFromBifrost",
+          "direction": "output",
+          "messageType": "SystemStatus",
+          "description": "Emits system status updates received from Bifrost."
+        }
+      ],
+      "parameters": [],
+      "messageSchemas": {
+        "Location": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["latitude", "longitude", "altitude"],
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" },
+            "altitude": { "type": "number" }
+          }
+        },
+        "Message": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": ["senderId", "receiverId", "networkId"],
+          "properties": {
+            "senderId": { "type": "string" },
+            "receiverId": { "type": "string" },
+            "networkId": { "type": "string" }
+          }
+        },
+        "SystemStatus": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": ["systemId", "name", "fullName", "milStd2525Symbol", "location", "timeSeconds"],
+          "properties": {
+            "systemId": { "type": "string" },
+            "name": { "type": "string" },
+            "fullName": { "type": "string" },
+            "milStd2525Symbol": { "type": "string" },
+            "location": { "$ref": "#/components/schemas/Location" },
+            "timeSeconds": { "type": "integer" }
+          }
+        }
+      },
+      "initializationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": ["bifrostUrl", "bifrostRestUrl", "udgUrl", "c2simUrl", "friendlyForceSideId", "updateInterval", "durationOfTimeUnit"],
+        "properties": {
+          "bifrostUrl": {"type": "string"},
+          "bifrostRestUrl": {"type": "string"},
+          "udgUrl": {"type": "string"},
+          "c2simUrl": {"type": "string"},
+          "friendlyForceSideId": {"type": "string"},
+          "updateInterval": {"type": "integer"},
+          "durationOfTimeUnit": {"type": "number"}
+        }
+      },
+      "defaultParameterSet": {
+        "bifrostUrl": "http://localhost:8080",
+        "bifrostRestUrl": "http://localhost:8081",
+        "udgUrl": "http://udg:8080",
+        "c2simUrl": "http://c2sim:8080",
+        "friendlyForceSideId": "FR",
+        "updateInterval": 5,
+        "durationOfTimeUnit": 1.0
+      },
+      "behaviorDescription": "BifrostAdapter acts as a bridge between the mission model and the Bifrost system, translating orders and reports.",
+      "metadata": {
+        "source": "model-library/open-api/iitsec-mission.sysml",
+        "sysmlQualifiedName": "MissionArchitecture::Sim::MissionModel::MissionPackage::BifrostAdapter",
+        "stereotype": "DevsAtomicModel"
+      }
+    }
+  ]
+}

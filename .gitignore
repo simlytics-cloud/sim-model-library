@@ -38,3 +38,10 @@ Thumbs.db
 # Project Specific
 devs-codegen-testgen/
 !.mvn/wrapper/maven-wrapper.jar
+
+# Angular UI
+model-library-ui/.angular/
+model-library-ui/dist/
+model-library-ui/node_modules/
+model-library-ui/node/
+model-library-ui/coverage/

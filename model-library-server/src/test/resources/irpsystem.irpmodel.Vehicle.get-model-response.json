@@ -1,0 +1,205 @@
+{
+  "modelId": "irpsystem.irpmodel.Vehicle",
+  "name": "Vehicle",
+  "description": "DEVS atomic model representing a delivery vehicle with routing input and delivery/cost outputs.",
+  "implementationLanguage": "Java",
+  "inputPorts": [
+    {
+      "name": "acceptDeliveryRoute",
+      "direction": "input",
+      "messageType": "DeliveryRoute",
+      "description": "Receives the delivery route assigned to the vehicle."
+    }
+  ],
+  "outputPorts": [
+    {
+      "name": "dropDelivery",
+      "direction": "output",
+      "messageType": "Delivery",
+      "description": "Emits deliveries as the vehicle reaches retailers."
+    },
+    {
+      "name": "dailyDeliveryCost",
+      "direction": "output",
+      "messageType": "VehicleCost",
+      "description": "Emits the daily transportation cost for this vehicle."
+    }
+  ],
+  "parameters": [
+    {
+      "name": "vehicleId",
+      "type": "integer",
+      "required": true,
+      "description": "Unique vehicle identifier."
+    },
+    {
+      "name": "capacity",
+      "type": "number",
+      "required": true,
+      "description": "Maximum product capacity carried by the vehicle."
+    },
+    {
+      "name": "manufacturerLocation",
+      "type": "Coordinate",
+      "required": true,
+      "description": "Location of the manufacturer/depot."
+    },
+    {
+      "name": "costPerKm",
+      "type": "number",
+      "required": true,
+      "description": "Transportation cost per kilometer."
+    },
+    {
+      "name": "speedKmHr",
+      "type": "number",
+      "required": true,
+      "description": "Vehicle speed in km/h."
+    },
+    {
+      "name": "dailyKmTraveled",
+      "type": "number",
+      "required": false,
+      "defaultValue": 0,
+      "description": "Daily distance traveled by the vehicle."
+    },
+    {
+      "name": "deliveryRoute",
+      "type": "DeliveryRoute",
+      "required": false,
+      "description": "Current route assigned to the vehicle."
+    },
+    {
+      "name": "location",
+      "type": "Coordinate",
+      "required": false,
+      "description": "Current vehicle location."
+    }
+  ],
+  "messageSchemas": {
+    "Coordinate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "Delivery": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retailerId",
+        "retailerLocation",
+        "productAmount"
+      ],
+      "properties": {
+        "retailerId": {
+          "type": "integer"
+        },
+        "retailerLocation": {
+          "$ref": "#/components/schemas/Coordinate"
+        },
+        "productAmount": {
+          "type": "number"
+        }
+      }
+    },
+    "DeliveryRoute": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vehicleId",
+        "deliveries"
+      ],
+      "properties": {
+        "vehicleId": {
+          "type": "integer"
+        },
+        "deliveries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Delivery"
+          }
+        }
+      }
+    },
+    "VehicleCost": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "day",
+        "vehicleId",
+        "cost"
+      ],
+      "properties": {
+        "day": {
+          "type": "integer"
+        },
+        "vehicleId": {
+          "type": "integer"
+        },
+        "cost": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "initializationSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "vehicleId",
+      "capacity",
+      "manufacturerLocation",
+      "costPerKm",
+      "speedKmHr"
+    ],
+    "properties": {
+      "vehicleId": {
+        "type": "integer"
+      },
+      "capacity": {
+        "type": "number"
+      },
+      "manufacturerLocation": {
+        "$ref": "#/components/schemas/Coordinate"
+      },
+      "costPerKm": {
+        "type": "number"
+      },
+      "speedKmHr": {
+        "type": "number"
+      },
+      "dailyKmTraveled": {
+        "type": "number",
+        "default": 0
+      },
+      "deliveryRoute": {
+        "$ref": "#/components/schemas/DeliveryRoute"
+      },
+      "location": {
+        "$ref": "#/components/schemas/Coordinate"
+      }
+    }
+  },
+  "behaviorDescription": "Vehicle accepts a DeliveryRoute, traverses deliveries, emits Delivery messages to retailers, and reports daily VehicleCost.",
+  "metadata": {
+    "source": "model-library/open-api/irp-system.sysml",
+    "sysmlQualifiedName": "irpsystem::irpmodel::Vehicle",
+    "stereotype": "DevsAtomicModel"
+  }
+}

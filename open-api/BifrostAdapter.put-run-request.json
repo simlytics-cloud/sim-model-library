@@ -1,0 +1,26 @@
+{
+  "runId": "run-bifrost-001",
+  "initializationParameters": {
+    "bifrostUrl": "http://bifrost.example.com:8080",
+    "bifrostRestUrl": "http://bifrost.example.com:8081",
+    "udgUrl": "http://udg.example.com:8082",
+    "c2simUrl": "http://c2sim.example.com:8083",
+    "friendlyForceSideId": "FR",
+    "updateInterval": 5,
+    "durationOfTimeUnit": 1.0
+  },
+  "kafka": {
+    "bootstrapServers": "kafka.example.com:9092",
+    "topic": "mission-system",
+    "securityProtocol": "PLAINTEXT"
+  },
+  "simulation": {
+    "simulationId": "sim-bifrost-001",
+    "federationId": "mission-demo-federation",
+    "timeMode": {
+      "mode": "fast-time",
+      "timeType": "double",
+      "secondsPerSimulationTimeUnit": 1.0
+    }
+  }
+}

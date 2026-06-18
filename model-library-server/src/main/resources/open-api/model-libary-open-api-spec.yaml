@@ -1,0 +1,415 @@
+openapi: 3.1.0
+
+info:
+  title: DEVS Foundry Atomic Model API
+  version: 1.0.0
+
+paths:
+
+  /v1/models:
+    get:
+      summary: List available atomic models
+      operationId: listModels
+      responses:
+        '200':
+          description: Available atomic models
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - models
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AtomicModelSummary'
+
+  /v1/models/{modelId}:
+    get:
+      summary: Get atomic model definition
+      operationId: getModel
+      parameters:
+        - $ref: '#/components/parameters/ModelId'
+      responses:
+        '200':
+          description: Atomic model definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AtomicModel'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/models/{modelId}/run:
+    put:
+      summary: Start an atomic model run
+      operationId: startModelRun
+      parameters:
+        - $ref: '#/components/parameters/ModelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartModelRunRequest'
+      responses:
+        '202':
+          description: Run request accepted and queued for execution startup
+          headers:
+            Location:
+              description: URL for polling run status
+              schema:
+                type: string
+                example: /v1/runs/run-001
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartModelRunResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/runs/{runId}:
+    get:
+      summary: Get run status
+      operationId: getRunStatus
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+
+  parameters:
+    ModelId:
+      name: modelId
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+
+    AtomicModelSummary:
+      type: object
+      required:
+        - modelId
+        - name
+        - description
+        - implementationLanguage
+      properties:
+        modelId:
+          type: string
+          example: battery-model-v1
+        name:
+          type: string
+          example: Battery Energy Model
+        description:
+          type: string
+        implementationLanguage:
+          type: string
+          example: Java
+
+    AtomicModel:
+      type: object
+      required:
+        - modelId
+        - name
+        - description
+        - inputPorts
+        - outputPorts
+        - parameters
+        - implementationLanguage
+        - messageSchemas
+        - initializationSchema
+      properties:
+        modelId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        implementationLanguage:
+          type: string
+          example: Java
+
+        inputPorts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortDefinition'
+
+        outputPorts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortDefinition'
+
+        parameters:
+          type: array
+          description: High-level list of model initialization parameters.
+          items:
+            $ref: '#/components/schemas/ParameterDefinition'
+
+        messageSchemas:
+          type: object
+          description: JSON Schemas for port message payloads.
+          additionalProperties:
+            $ref: '#/components/schemas/JsonSchema'
+
+        initializationSchema:
+          $ref: '#/components/schemas/JsonSchema'
+
+        defaultParameterSet:
+          $ref: '#/components/schemas/ModelDefaultParameterSet'
+
+        behaviorDescription:
+          type: string
+          description: Optional code, pseudo-code, or behavioral explanation.
+
+        metadata:
+          type: object
+          additionalProperties: true
+
+    PortDefinition:
+      type: object
+      required:
+        - name
+        - direction
+        - messageType
+      properties:
+        name:
+          type: string
+          example: powerDemand
+        direction:
+          type: string
+          enum: [input, output]
+        messageType:
+          type: string
+          example: BatteryPowerRequest
+        description:
+          type: string
+
+    ParameterDefinition:
+      type: object
+      required:
+        - name
+        - type
+        - required
+      properties:
+        name:
+          type: string
+          example: initialStateOfCharge
+        type:
+          type: string
+          example: number
+        required:
+          type: boolean
+        defaultValue: {}
+        description:
+          type: string
+
+    StartModelRunRequest:
+      type: object
+      required:
+        - initializationParameters
+        - kafka
+      properties:
+        runId:
+          type: string
+          description: Optional caller-provided run identifier.
+          example: run-001
+
+        initializationParameters:
+          type: object
+          description: |
+            Model-specific initialization values. This object must validate
+            against the model's initializationSchema.
+          additionalProperties: true
+
+        kafka:
+          $ref: '#/components/schemas/KafkaConfiguration'
+
+        simulation:
+          $ref: '#/components/schemas/SimulationContext'
+
+    KafkaConfiguration:
+      type: object
+      required:
+        - bootstrapServers
+        - topic
+      properties:
+        bootstrapServers:
+          type: string
+          example: kafka.example.com:9092
+        topic:
+          type: string
+          example: simulation.run.001
+        consumerGroup:
+          type: string
+        securityProtocol:
+          type: string
+          example: SASL_SSL
+        saslMechanism:
+          type: string
+          example: SCRAM-SHA-512
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+
+    SimulationContext:
+      type: object
+      properties:
+        simulationId:
+          type: string
+          example: sim-001
+        federationId:
+          type: string
+          example: mission-rehearsal-alpha
+        timeMode:
+          $ref: '#/components/schemas/TimeMode'
+
+    TimeType:
+      type: string
+      description: The data type used for simulation time.
+      enum: [double, long]
+
+    TimeMode:
+      type: object
+      description: Configuration for simulation time and its relation to real-world time.
+      required:
+        - mode
+        - timeType
+      properties:
+        mode:
+          type: string
+          enum: [real-time, fast-time]
+          description: Whether the simulation runs at real-world speed or as fast as possible.
+        timeType:
+          $ref: '#/components/schemas/TimeType'
+        secondsPerSimulationTimeUnit:
+          type: number
+          format: double
+          description: >
+            The duration in real-world seconds that corresponds to one unit of simulation time.
+            Use 1.0 for 1 second, 3600.0 for 1 hour, or 0.001 for 1 millisecond.
+          example: 0.001
+
+    StartModelRunResponse:
+      type: object
+      required:
+        - runId
+        - modelId
+        - status
+        - statusUrl
+      properties:
+        runId:
+          type: string
+          description: Server-assigned run identifier for status polling.
+          example: run-7f83a9c2
+        modelId:
+          type: string
+          example: irpsystem.irpmodel.Vehicle
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        statusUrl:
+          type: string
+          description: Relative URL to retrieve current run status.
+          example: /v1/runs/run-7f83a9c2
+        acceptedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the server accepted the run request.
+          example: '2026-06-14T12:00:00Z'
+        message:
+          type: string
+
+    RunStatusResponse:
+      type: object
+      required:
+        - runId
+        - modelId
+        - status
+      properties:
+        runId:
+          type: string
+          example: run-7f83a9c2
+        modelId:
+          type: string
+          example: irpsystem.irpmodel.Vehicle
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        acceptedAt:
+          type: string
+          format: date-time
+          example: '2026-06-14T12:00:00Z'
+        readyAt:
+          type: string
+          format: date-time
+          description: Set when runtime signals readiness for execution.
+          example: '2026-06-14T12:00:05Z'
+        startedAt:
+          type: string
+          format: date-time
+          example: '2026-06-14T12:00:06Z'
+        completedAt:
+          type: string
+          format: date-time
+          example: '2026-06-14T12:03:20Z'
+        message:
+          type: string
+
+    RunStatus:
+      type: string
+      description: Lifecycle state for a submitted run.
+      enum: [accepted, starting, ready, running, completed, failed, canceled]
+
+    JsonSchema:
+      type: object
+      description: Embedded JSON Schema 2020-12 document.
+      additionalProperties: true
+
+    ModelDefaultParameterSet:
+      type: object
+      description: |
+        Model-specific initialization default values.
+        This object must validate against the model's initializationSchema.
+      additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -1,0 +1,40 @@
+package iso.sim.server
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.readValue
+
+class CatalogRepository(
+    private val resourcePaths: List<String> = listOf("model-catalog.json", "bifrost-model-catalog.json"),
+    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
+) {
+    fun loadCatalog(): ModelCatalogDto {
+        val allModels = resourcePaths.flatMap { path ->
+            val stream = javaClass.classLoader.getResourceAsStream(path)
+                ?: throw IllegalStateException("Model catalog resource '$path' was not found")
+            stream.use {
+                val catalog: ModelCatalogDto = objectMapper.readValue(it)
+                catalog.models
+            }
+        }
+        val catalog = ModelCatalogDto(allModels)
+        validate(catalog)
+        return catalog
+    }
+
+    private fun validate(catalog: ModelCatalogDto) {
+        if (catalog.models.isEmpty()) {
+            throw IllegalStateException("Model catalog must contain at least one model")
+        }
+        catalog.models.forEach { model ->
+            if (model.modelId.isBlank()) {
+                throw IllegalStateException("Each model must define a non-empty modelId")
+            }
+            if (model.name.isBlank()) {
+                throw IllegalStateException("Model '${model.modelId}' must define a non-empty name")
+            }
+        }
+    }
+}
+
+class ModelNotFoundException(modelId: String) : RuntimeException("Model '$modelId' was not found")
