@@ -9,7 +9,7 @@
   </parent>
 
   <artifactId>model-library-ui</artifactId>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
 
   <name>model-library-ui</name>
 
@@ -62,12 +62,12 @@
         <executions>
           <execution>
             <id>copy-resources</id>
-            <phase>process-resources</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>${basedir}/../model-library-server/src/main/resources/web</outputDirectory>
+              <outputDirectory>${project.build.outputDirectory}/model-library-ui</outputDirectory>
               <resources>
                 <resource>
                   <directory>dist/model-library-ui/browser</directory>

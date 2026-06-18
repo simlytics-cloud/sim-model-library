@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;28c27d6c09c7263ae5c405f371c671d0e03d0100076c14fd33f403163b13fc10;/Users/robkewley/dev/simlytics/sim-model-library/model-library-ui/src/app/app.component.ts"],
-  "sourcesContent": ["\n    .spacer {\n      flex: 1 1 auto;\n    }\n    span[routerLink] {\n      cursor: pointer;\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,QAAM,EAAE,EAAE;AACZ;AACA,IAAI,CAAC;AACH,UAAQ;AACV;",
-  "names": []
-}

@@ -14,6 +14,11 @@
   <name>model-library-server</name>
 
   <dependencies>
+    <dependency>
+      <groupId>cloud.simlytics</groupId>
+      <artifactId>model-library-ui</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- Kotlin Standard Library -->
     <dependency>
       <groupId>org.jetbrains.kotlin</groupId>

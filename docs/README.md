@@ -234,7 +234,7 @@ Each phase has clear build goals and validation gates.
   - hosted docs endpoints (`/openapi.yaml`, `/swagger`)
 - Server is runnable outside tests via `ModelLibraryServerMain`.
 - Default server port is HOCON-driven (`model.library.server.port`) with default `8090`.
-- `model-library-ui` is currently a Kotlin placeholder module, not a real Angular app yet.
+- `model-library-ui` is a JAR-packaged module containing the Angular build, served by the server via `model-library-ui/` classpath resources.
 
 ## Phase 1C — Generic run endpoint and abstract runner
 

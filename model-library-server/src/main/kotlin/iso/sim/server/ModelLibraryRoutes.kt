@@ -121,10 +121,15 @@ class ModelLibraryRoutes(
                 )
             },
             pathPrefix("ui") {
-                getFromResourceDirectory("web")
+                concat(
+                    pathEndOrSingleSlash {
+                        getFromResource("model-library-ui/index.html")
+                    },
+                    getFromResourceDirectory("model-library-ui")
+                )
             },
             pathSingleSlash {
-                redirect(Uri.create("ui/index.html"), StatusCodes.MOVED_PERMANENTLY)
+                redirect(Uri.create("ui/"), StatusCodes.MOVED_PERMANENTLY)
             }
         )
     }

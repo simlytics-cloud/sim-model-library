@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;2b2b28e81629890282df4406a25dcbb665a72b8fa2522fac9bc186a37c8b30d2;/Users/robkewley/dev/simlytics/sim-model-library/model-library-ui/src/app/models/model-list/model-list.component.ts"],
-  "sourcesContent": ["\n    .model-grid {\n      display: grid;\n      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));\n      gap: 20px;\n      margin-top: 20px;\n    }\n    .model-card {\n      height: 100%;\n      display: flex;\n      flex-direction: column;\n    }\n    mat-card-content {\n      flex-grow: 1;\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,yBAAuB,OAAO,SAAS,EAAE,OAAO,KAAK,EAAE;AACvD,OAAK;AACL,cAAY;AACd;AACA,CAAC;AACC,UAAQ;AACR,WAAS;AACT,kBAAgB;AAClB;AACA;AACE,aAAW;AACb;",
-  "names": []
-}
