@@ -29,6 +29,10 @@ class ModelLibraryClient(
         return executeJsonGet("$baseUrl/v1/models")
     }
 
+    fun listRuns(): CompletionStage<List<RunStatusResponse>> {
+        return executeJsonGet("$baseUrl/v1/runs")
+    }
+
     fun getModel(modelId: String): CompletionStage<AtomicModelDto> {
         return executeJsonGet("$baseUrl/v1/models/$modelId")
     }

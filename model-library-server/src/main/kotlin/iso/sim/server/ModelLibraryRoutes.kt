@@ -104,6 +104,11 @@ class ModelLibraryRoutes(
                             }
                         }
                     },
+                    path("runs") {
+                        get {
+                            completeJson(runService.listRuns())
+                        }
+                    },
                     path(PathMatchers.segment("runs").slash(PathMatchers.segment())) { runId ->
                         get {
                             try {

@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
       <span routerLink="/">Model Library</span>
       <span class="spacer"></span>
       <button mat-button routerLink="/models">Models</button>
+      <button mat-button routerLink="/runs">Runs</button>
     </mat-toolbar>
 
     <div class="container" style="padding: 20px;">

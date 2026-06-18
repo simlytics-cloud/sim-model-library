@@ -76,6 +76,10 @@ class RunService(
         return runStatusStore.get(runId) ?: throw RunNotFoundException(runId)
     }
 
+    fun listRuns(): List<RunStatusResponse> {
+        return runStatusStore.getAll()
+    }
+
     fun getRunStatusStore(): RunStatusStore {
         return runStatusStore
     }

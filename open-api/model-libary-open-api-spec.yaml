@@ -71,6 +71,20 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1/runs:
+    get:
+      summary: List all runs
+      operationId: listRuns
+      responses:
+        '200':
+          description: List of run statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunStatusResponse'
+
   /v1/runs/{runId}:
     get:
       summary: Get run status

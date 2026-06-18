@@ -39,6 +39,17 @@ export interface ModelDetail extends ModelSummary {
   metadata?: { [key: string]: string };
 }
 
+export interface RunStatus {
+  runId: string;
+  modelId: string;
+  status: string;
+  acceptedAt: string;
+  readyAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  message?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -59,7 +70,11 @@ export class ModelService {
     return this.http.put(`${this.apiUrl}/models/${modelId}/run`, request);
   }
 
-  getRunStatus(runId: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/runs/${runId}`);
+  getRuns(): Observable<RunStatus[]> {
+    return this.http.get<RunStatus[]>(`${this.apiUrl}/runs`);
+  }
+
+  getRunStatus(runId: string): Observable<RunStatus> {
+    return this.http.get<RunStatus>(`${this.apiUrl}/runs/${runId}`);
   }
 }

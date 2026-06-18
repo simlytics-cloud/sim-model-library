@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap
 interface RunStatusStore {
     fun save(status: RunStatusResponse)
     fun get(runId: String): RunStatusResponse?
+    fun getAll(): List<RunStatusResponse>
 }
 
 class InMemoryRunStatusStore : RunStatusStore {
@@ -47,5 +48,9 @@ class InMemoryRunStatusStore : RunStatusStore {
 
     override fun get(runId: String): RunStatusResponse? {
         return runs[runId]
+    }
+
+    override fun getAll(): List<RunStatusResponse> {
+        return runs.values.toList()
     }
 }

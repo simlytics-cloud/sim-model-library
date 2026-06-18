@@ -77,6 +77,9 @@ class ModelLibraryClientServerIntegrationTest {
             assertEquals(runId, statusResponse.runId)
             assertEquals("accepted", statusResponse.status)
 
+            val listRunsResponse = client.listRuns().toCompletableFuture().get(10, TimeUnit.SECONDS)
+            assertTrue(listRunsResponse.any { it.runId == runId })
+
             val missingRunResponse = org.junit.jupiter.api.Assertions.assertThrows(ExecutionException::class.java) {
                 client.getRunStatus("missing-run").toCompletableFuture().get(10, TimeUnit.SECONDS)
             }
