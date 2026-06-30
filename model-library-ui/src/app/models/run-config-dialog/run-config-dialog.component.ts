@@ -55,8 +55,12 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
             <input matInput formControlName="simulationId">
           </mat-form-field>
           <mat-form-field appearance="fill">
-            <mat-label>Federation ID</mat-label>
-            <input matInput formControlName="federationId">
+            <mat-label>Model Instance ID</mat-label>
+            <input matInput formControlName="modelInstanceId">
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Coordinator ID</mat-label>
+            <input matInput formControlName="coordinatorId">
           </mat-form-field>
         </div>
 
@@ -69,6 +73,18 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
           <mat-form-field appearance="fill">
             <mat-label>Topic</mat-label>
             <input matInput formControlName="topic">
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Consumer Group</mat-label>
+            <input matInput formControlName="consumerGroup">
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>Security Protocol</mat-label>
+            <input matInput formControlName="securityProtocol">
+          </mat-form-field>
+          <mat-form-field appearance="fill">
+            <mat-label>SASL Mechanism</mat-label>
+            <input matInput formControlName="saslMechanism">
           </mat-form-field>
         </div>
       </form>
@@ -110,6 +126,10 @@ export class RunConfigDialogComponent {
     public dialogRef: MatDialogRef<RunConfigDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { model: ModelDetail }
   ) {
+    const modelIdSegments = this.getModelIdSegments(data.model.modelId);
+    const simulationId = 'sim-001';
+    const coordinatorId = modelIdSegments.length > 1 ? modelIdSegments[modelIdSegments.length - 2] : 'demo-coordinator';
+    const modelInstanceId = modelIdSegments.length > 0 ? modelIdSegments[modelIdSegments.length - 1] : 'instance-001';
     const defaultParams = data.model.defaultParameterSet;
     this.initializationSchema = this.buildInitializationSchema(
       data.model.initializationSchema,
@@ -120,14 +140,25 @@ export class RunConfigDialogComponent {
       runId: [`run-${Math.floor(Math.random() * 1000)}`, Validators.required],
       initializationParameters: this.fb.group(defaultParams || {}),
       simulation: this.fb.group({
-        simulationId: ['sim-001'],
-        federationId: ['demo-federation']
+        simulationId: [simulationId],
+        modelInstanceId: [modelInstanceId],
+        coordinatorId: [coordinatorId]
       }),
       kafka: this.fb.group({
         bootstrapServers: ['localhost:9092'],
-        topic: ['simulation-events']
+        topic: [`simulation.${simulationId}.${coordinatorId}`],
+        consumerGroup: [`${modelInstanceId}`],
+        securityProtocol: ['PLAINTEXT'],
+        saslMechanism: ['']
       })
     });
+  }
+
+  private getModelIdSegments(modelId: string | undefined): string[] {
+    return (modelId || '')
+      .split('.')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
   }
 
   private buildInitializationSchema(initializationSchema: any, messageSchemas?: { [key: string]: any }): any {

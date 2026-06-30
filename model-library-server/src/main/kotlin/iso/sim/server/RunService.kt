@@ -37,13 +37,15 @@ import java.util.UUID
 class RunService(
     private val modelCatalogService: ModelCatalogService,
     private val runExecutor: RunExecutor = StubRunExecutor(),
-    private val runStatusStore: RunStatusStore = InMemoryRunStatusStore()
+    private val runStatusStore: RunStatusStore = InMemoryRunStatusStore(),
+    private val defaults: RunRequestDefaults = RunRequestDefaults()
 ) {
     fun startRun(modelId: String, request: StartModelRunRequest): StartModelRunResponse {
         modelCatalogService.getModel(modelId)
-        validateRequest(request)
+        val requestWithDefaults = applyDefaults(request)
+        validateRequest(requestWithDefaults)
 
-        val runId = request.runId?.takeIf { it.isNotBlank() } ?: "run-${UUID.randomUUID()}"
+        val runId = requestWithDefaults.runId?.takeIf { it.isNotBlank() } ?: "run-${UUID.randomUUID()}"
         val acceptedAt = Instant.now().toString()
         val statusUrl = "/v1/runs/$runId"
         val status = RunStatusResponse(
@@ -58,7 +60,7 @@ class RunService(
             RunExecutionContext(
                 runId = runId,
                 modelId = modelId,
-                request = request
+                request = requestWithDefaults
             )
         )
 
@@ -96,7 +98,39 @@ class RunService(
             throw InvalidRunRequestException("'kafka.topic' is required")
         }
     }
+
+    private fun applyDefaults(request: StartModelRunRequest): StartModelRunRequest {
+        val kafka = request.kafka ?: KafkaConfigurationDto()
+        val mergedKafka = KafkaConfigurationDto(
+            bootstrapServers = kafka.bootstrapServers ?: defaults.kafkaBootstrapServers,
+            topic = kafka.topic ?: defaults.kafkaTopic,
+            consumerGroup = kafka.consumerGroup ?: defaults.kafkaConsumerGroup,
+            securityProtocol = kafka.securityProtocol ?: defaults.kafkaSecurityProtocol,
+            saslMechanism = kafka.saslMechanism ?: defaults.kafkaSaslMechanism,
+            properties = kafka.properties ?: defaults.kafkaProperties
+        )
+        val simulation = request.simulation ?: SimulationContextDto()
+        val mergedSimulation = SimulationContextDto(
+            simulationId = simulation.simulationId ?: defaults.simulationId,
+            modelInstanceId = simulation.modelInstanceId ?: defaults.modelInstanceId,
+            coordinatorId = simulation.coordinatorId ?: defaults.coordinatorId,
+            timeMode = simulation.timeMode
+        )
+        return request.copy(kafka = mergedKafka, simulation = mergedSimulation)
+    }
 }
+
+data class RunRequestDefaults(
+    val simulationId: String = "sim-001",
+    val modelInstanceId: String = "instance-001",
+    val coordinatorId: String = "demo-coordinator",
+    val kafkaBootstrapServers: String = "localhost:9092",
+    val kafkaTopic: String = "simulation-events",
+    val kafkaConsumerGroup: String = "simulation-runner",
+    val kafkaSecurityProtocol: String = "PLAINTEXT",
+    val kafkaSaslMechanism: String? = null,
+    val kafkaProperties: Map<String, String> = emptyMap()
+)
 
 class InvalidRunRequestException(message: String) : RuntimeException(message)
 

@@ -16,7 +16,8 @@
   },
   "simulation": {
     "simulationId": "sim-bifrost-001",
-    "federationId": "mission-demo-federation",
+    "modelInstanceId": "instance-bifrost-001",
+    "coordinatorId": "mission-demo-coordinator",
     "timeMode": {
       "mode": "fast-time",
       "timeType": "double",

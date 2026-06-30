@@ -2,6 +2,7 @@ package iso.sim.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.catalog.CatalogRepository;
+import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
 import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
@@ -11,7 +12,6 @@ import iso.sim.server.dto.run.TimeModeDto;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.service.InvalidRunRequestException;
-import iso.sim.server.service.ModelCatalogService;
 import iso.sim.server.service.RunNotFoundException;
 import iso.sim.server.service.RunService;
 import iso.sim.server.store.InMemoryRunStatusStore;
@@ -40,6 +40,7 @@ class RunServiceTest {
             new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
             new SimulationContextDto(
                 "sim-irp-001",
+                "instance-irp-001",
                 null,
                 new TimeModeDto("fast-time", "long", 3600.0)
             )

@@ -1,7 +1,5 @@
-package iso.sim.server.service;
+package iso.sim.server.catalog;
 
-import iso.sim.server.catalog.CatalogRepository;
-import iso.sim.server.catalog.ModelNotFoundException;
 import iso.sim.server.dto.catalog.AtomicModelDto;
 import iso.sim.server.dto.catalog.AtomicModelSummaryDto;
 import iso.sim.server.dto.catalog.ModelCatalogDto;

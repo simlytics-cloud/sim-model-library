@@ -291,9 +291,12 @@ components:
         simulationId:
           type: string
           example: sim-001
-        federationId:
+        modelInstanceId:
           type: string
-          example: mission-rehearsal-alpha
+          example: instance-001
+        coordinatorId:
+          type: string
+          example: mission-coordinator-alpha
         timeMode:
           $ref: '#/components/schemas/TimeMode'
 

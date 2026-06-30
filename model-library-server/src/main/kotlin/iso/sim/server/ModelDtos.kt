@@ -70,7 +70,8 @@ data class KafkaConfigurationDto(
 
 data class SimulationContextDto(
     val simulationId: String? = null,
-    val federationId: String? = null,
+    val modelInstanceId: String? = null,
+    val coordinatorId: String? = null,
     val timeMode: TimeModeDto? = null
 )
 

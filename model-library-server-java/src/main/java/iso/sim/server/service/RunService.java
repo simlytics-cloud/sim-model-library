@@ -1,5 +1,6 @@
 package iso.sim.server.service;
 
+import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.StartModelRunRequest;

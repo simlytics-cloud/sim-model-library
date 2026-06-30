@@ -33,6 +33,7 @@ package iso.sim.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -53,6 +54,7 @@ class RunServiceTest {
             ),
             simulation = SimulationContextDto(
                 simulationId = "sim-irp-001",
+                modelInstanceId = "instance-irp-001",
                 timeMode = TimeModeDto(
                     mode = "fast-time",
                     timeType = "long",
@@ -94,15 +96,19 @@ class RunServiceTest {
     }
 
     @Test
-    fun `startRun throws when kafka section is missing`() {
+    fun `startRun applies kafka defaults when kafka section is missing`() {
         val request = StartModelRunRequest(
             initializationParameters = objectMapper.valueToTree(mapOf("vehicleId" to 1))
         )
 
-        val exception = org.junit.jupiter.api.Assertions.assertThrows(InvalidRunRequestException::class.java) {
-            runService.startRun("irpsystem.irpmodel.Vehicle", request)
-        }
-        assertTrue(exception.message!!.contains("kafka"))
+        val response = runService.startRun("irpsystem.irpmodel.Vehicle", request)
+        assertNotNull(response.runId)
+
+        val context = recordingExecutor.lastContext!!
+        assertEquals("localhost:9092", context.request.kafka?.bootstrapServers)
+        assertEquals("simulation-events", context.request.kafka?.topic)
+        assertEquals("simulation-runner", context.request.kafka?.consumerGroup)
+        assertEquals("PLAINTEXT", context.request.kafka?.securityProtocol)
     }
 
     @Test
