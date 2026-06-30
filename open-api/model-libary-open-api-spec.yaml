@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: DEVS Foundry Atomic Model API
+  title: DEVS Model API
   version: 1.0.0
 
 paths:

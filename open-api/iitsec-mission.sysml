@@ -33,10 +33,17 @@ package MissionArchitecture {
       attribute rollDegrees: Real;
     }
 
+    abstract item def MessagePayload {
+        attribute payloadId: String;
+    }
+
     item def Message {
       attribute senderId: String;
       attribute receiverId: String;
+      attribute messageId: String;
       attribute networkId: String;
+      attribute messageType: String;
+      attribute payload: MessagePayload;
     }
 
     enum def TaskStatus {
@@ -46,8 +53,8 @@ package MissionArchitecture {
       CANCELLED
     }
 
-    item def Task specializes Message {
-      attribute uid: String;
+    item def Task specializes MessagePayload {
+      attribute taskUid: String;
       attribute assignedSystemId: String;
       attribute taskStatus: TaskStatus;
     }
@@ -117,6 +124,7 @@ package MissionArchitecture {
       attribute airTemperatureC: Real;
     }
 
+
     enum def UavOperatingMode {
       OFF,
       TAKEOFF,
@@ -141,37 +149,33 @@ package MissionArchitecture {
     }
 
     package InformationDomain {
-      item def RadioType {
-        attribute name: String;
-        attribute powerWatts: Real;
-        attribute operatingFrequency: Real;
-        attribute bandwidthHz: Real;
-        attribute antennaGainDb: Real;
-        attribute receiverSensitivityDbm: Real;
-      }
+        enum def JammerCommandEnum {
+            START_JAMMING,
+            STOP_JAMMING
+        }
 
-      item def JammingActivity {
-        attribute jammerLocation: Location;
-        attribute jammerPower: Real;
-        attribute jammerFrequency: Real;
-      }
+        item def JammerCommand {
+          attribute jammerId: String;
+          attribute networkId: String;
+          attribute jammerCommand: JammerCommandEnum;
+        }
 
-      // Registry entry describing a participant's radio and last-known state
-      item def RadioInfo {
-        attribute systemId: String;
-        attribute radio: RadioType;
-        attribute lastKnownLocation: Location;
-        attribute lastSeenTimeSeconds: Integer;
-      }
+        item def NetworkConnectivity {
+            attribute nodes: String[0..*];
+            attribute matrix: Boolean[0..*] #Map(key = String, value = map(key = String, value = Boolean));
+        }
 
-      // Observation of pairwise radio connectivity
-      item def RadioConnectivity {
-        attribute senderId: String;
-        attribute receiverId: String;
-        attribute linkMarginDbm: Real;
-        attribute isConnected: Boolean;
-        attribute timeSeconds: Integer;
-      }
+        item def CommunicationsSystemInit {
+            attribute platformId: String;
+            attribute transmitPower: Real;
+            attribute location: Location;
+        }
+
+        item def CommunicationsNetworkInit {
+            attribute networkId: String;
+            attribute radios: CommunicationsSystemInit[1..*];
+            attribute jammers: CommunicationsSystemInit[0..*];
+        }
     }
 
   }
@@ -186,32 +190,39 @@ package MissionArchitecture {
   package Sim {
     package MissionModel {
       import MissionArchitecture::SimDomain::*;
+      import MissionArchitecture::SimDomain::InformationDomain::*;
       import MissionArchitecture::Sim::MissionModel::MissionPackage::*;
       import MissionArchitecture::Sim::MissionModel::InformationEnvironment::*;
 
       #DevsCoupledModel
       part def MissionModel {
         in port messageIntoMissionModel: Message;
+        in port jammerCommandIntoMissionModel: JammerCommand;
         out port reportsFromMissionModel: SystemStatus;
 
         public part missionPackage: MissionPackage;
         public part informationEnvironment: InformationEnvironment;
 
         connect messageIntoMissionModel to informationEnvironment.messageIntoInformationEnvironment;
+        connect jammerCommandIntoMissionModel to informationEnvironment.jammerCommandToInformationEnvironment;
         connect informationEnvironment.messageForMissionPackage to missionPackage.ordersForMissionPackage;
+        connect informationEnvironment.networkConnectivityForMissionPackage to missionPackage.networkConnectivityToMissionPackage;
         connect missionPackage.statusFromMissionPackage to reportsFromMissionModel;
         connect missionPackage.statusFromMissionPackage to informationEnvironment.systemStatusToInformationEnvironment;
       }
 
       package MissionPackage {
         import MissionArchitecture::SimDomain::*;
+        import MissionArchitecture::SimDomain::InformationDomain::*;
         import MissionArchitecture::Sim::MissionModel::MissionPackage::CoupledMissionSystem::*;
         import MissionArchitecture::cloud::simlytics::c2sim::*;
 
         #DevsCoupledModel
         part def MissionPackage {
           in port ordersForMissionPackage: Message;
+          in port networkConnectivityToMissionPackage: NetworkConnectivity;
           out port statusFromMissionPackage: SystemStatus;
+          out port jammerCommandFromMissionPackage: JammerCommand;
 
           public part platforms: Platform[0..*];
           public part robots: CoupledMissionSystem[0..*];
@@ -220,6 +231,7 @@ package MissionArchitecture {
           public part c2SimServer: C2SimAdapter;
           public part bifrostAdapter: BifrostAdapter;
           public part missionSystemObserver: MissionSystemObserver;
+          public part ravenUav: RavenMS4Me;
 
           // Orders route into the MissionPackageEngine which mediates and forwards statuses
           connect ordersForMissionPackage to missionPackageEngine.receiveOrder;
@@ -228,6 +240,7 @@ package MissionArchitecture {
           connect platforms.sendStatus to missionPackageEngine.receiveMissionSystemStatus;
           connect externalPlatforms.sendStatus to missionPackageEngine.receiveMissionSystemStatus;
           connect robots.coupledSendStatus to missionPackageEngine.receiveMissionSystemStatus;
+          connect ravenUav.sendStatus to missionPackageEngine.receiveMissionSystemStatus;
 
           // MissionPackageEngine emits the unified status to the MissionPackage output and observer
           connect missionPackageEngine.sendStatus to statusFromMissionPackage;
@@ -247,6 +260,7 @@ package MissionArchitecture {
           connect missionPackageEngine.sendOrder to robots.coupledReceiveOrder;
           connect missionPackageEngine.sendOrder to c2SimServer.ordersToC2Sim;
           connect missionPackageEngine.sendOrder to bifrostAdapter.ordersToBifrost;
+          connect missionPackageEngine.sendOrder to ravenUav.receiveOrder;
 
           // Engine emits status updates to child parts/adapters
           connect missionPackageEngine.updateExternalPlatformStatus to externalPlatforms.updateStatus;
@@ -296,7 +310,7 @@ package MissionArchitecture {
 
           #DevsCoupledModel
           part def CoupledMissionSystem {
-            in port coupledReceiveOrder: Task;
+            in port coupledReceiveOrder: Message;
             out port coupledSendStatus: SystemStatus;
 
             public part uavSystem: AutonomousSystem;
@@ -317,6 +331,11 @@ package MissionArchitecture {
 
         #DevsAtomicModel
         part def Platform specializes MissionSystem {
+        }
+
+        #DevsAtomicModel
+        part def RavenMS4Me specializes MissionSystem {
+            constant attribute takeoffTimeSeconds: Real;
         }
 
         #DevsAtomicModel
@@ -365,66 +384,63 @@ package MissionArchitecture {
         part def InformationEnvironment {
           in port messageIntoInformationEnvironment: Message;
           in port systemStatusToInformationEnvironment: SystemStatus;
+          in port jammerCommandToInformationEnvironment: JammerCommand;
           out port messageForMissionPackage: Message;
+          out port networkConnectivityForMissionPackage: NetworkConnectivity;
 
           public part networkModel: NetworkModel;
 
           connect systemStatusToInformationEnvironment to networkModel.statusToNetworkModel;
           connect messageIntoInformationEnvironment to networkModel.messageIntoNetworkModel;
+          connect jammerCommandToInformationEnvironment to networkModel.jammerCommandToNetworkModel;
           connect networkModel.messageFromNetworkModel to messageForMissionPackage;
+          connect networkModel.networkConnectivityReport to networkConnectivityForMissionPackage;
         }
 
         package NetworkModel {
           import MissionArchitecture::SimDomain::*;
+          import MissionArchitecture::SimDomain::InformationDomain::*;
 
           #DevsAtomicModel
-          part def CommunicationsNetwork {
+          abstract part def AbstractCommunicationsNetwork {
+            constant attribute communicationsNetworks: CommunicationsNetworkInit[1..*];
             in port messageIntoCommsNetwork: Message;
             in port statusToCommsNetwork: SystemStatus;
-            in port jammingActivityToCommsNetwork: JammingActivity;
+            in port jammerCommandToCommsNetwork: JammerCommand;
             out port messageFromCommsNetwork: Message;
-            out port radioConnectivityObservation: RadioConnectivity;
-            
-              // Registry of radios as state attribute (map keyed by systemId)
-              attribute knownRadios: RadioInfo[0..*] #Map(key = String, value = RadioInfo);
-              // Registry of active jammers
-              attribute activeJammers: JammingActivity[0..*] #Map(key = String, value = JammingActivity);
-              // Initial known radios from properties
-              constant attribute initialKnownRadios: RadioInfo[0..*] #Map(key = String, value = RadioInfo);
-              constant attribute connectivityUpdateFrequencySeconds: Integer;
           }
+           #DevsAtomicModel
+           part def PerfectCommunicationsNetwork specializes AbstractCommunicationsNetwork {
+             out port networkConnectivityObservation: NetworkConnectivity;
+           }
 
           #DevsAtomicModel
-          part def Jammer {
-            in port statusToJammer: SystemStatus;
-            out port jammerInitiatesJammingActivity: JammingActivity;
-            constant attribute jammingPowerWatts: Real;
-            constant attribute jammingFrequency: Real;
-            constant attribute jammingIntervalSeconds: Integer;
-            attribute currentLocation: Location;
+          part def CommunicationsNetwork specializes AbstractCommunicationsNetwork {
+            out port networkConnectivityObservation: NetworkConnectivity;
           }
 
           #DevsAtomicModel
           part def NetworkConnectivityObserver {
-            in port connectivityObservation: RadioConnectivity;
+            in port connectivityObservation: NetworkConnectivity;
           }
 
           #DevsCoupledModel
           part def NetworkModel {
             in port messageIntoNetworkModel: Message;
             in port statusToNetworkModel: SystemStatus;
+            in port jammerCommandToNetworkModel: JammerCommand;
             out port messageFromNetworkModel: Message;
+            out port networkConnectivityReport: NetworkConnectivity;
 
             public part commsNetwork: CommunicationsNetwork;
-            public part jammer: Jammer;
             public part networkConnectivityObserver: NetworkConnectivityObserver;
 
             connect messageIntoNetworkModel to commsNetwork.messageIntoCommsNetwork;
             connect statusToNetworkModel to commsNetwork.statusToCommsNetwork;
-            connect statusToNetworkModel to jammer.statusToJammer;
+            connect jammerCommandToNetworkModel to commsNetwork.jammerCommandToCommsNetwork;
             connect commsNetwork.messageFromCommsNetwork to messageFromNetworkModel;
-            connect commsNetwork.radioConnectivityObservation to networkConnectivityObserver.connectivityObservation;
-            connect jammer.jammerInitiatesJammingActivity to commsNetwork.jammingActivityToCommsNetwork;
+            connect commsNetwork.networkConnectivityObservation to networkConnectivityObserver.connectivityObservation;
+            connect commsNetwork.networkConnectivityObservation to networkConnectivityReport;
           }
         }
       }
