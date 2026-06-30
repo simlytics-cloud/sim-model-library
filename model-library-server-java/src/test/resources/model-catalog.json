@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "modelId": "irpsystem.irpmodel.Vehicle",
+      "name": "Vehicle",
+      "description": "Vehicle test model",
+      "implementationLanguage": "java",
+      "inputPorts": [],
+      "outputPorts": [],
+      "parameters": [],
+      "messageSchemas": {},
+      "initializationSchema": {
+        "type": "object"
+      },
+      "metadata": {}
+    }
+  ]
+}
