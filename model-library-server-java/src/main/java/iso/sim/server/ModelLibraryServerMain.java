@@ -4,8 +4,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import iso.sim.server.catalog.CatalogRepository;
 import iso.sim.server.catalog.ModelCatalogService;
+import iso.sim.server.dto.run.KafkaDefaultsResponse;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.executor.StubRunExecutor;
+import iso.sim.server.service.KafkaDefaultsConfig;
+import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.RunService;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import org.apache.pekko.actor.ActorSystem;
@@ -26,6 +29,7 @@ public final class ModelLibraryServerMain {
             System.getenv().getOrDefault("MODEL_LIBRARY_PORT", String.valueOf(config.getInt("model.library.server.port")))
         ));
         String runtimeExecutorType = config.getString("model.library.runtime.executor");
+        KafkaDefaultsResponse kafkaDefaults = KafkaDefaultsConfig.from(config).toResponse();
 
         ActorSystem actorSystem = ActorSystem.create("model-library-server");
         ModelCatalogService service = new ModelCatalogService(new CatalogRepository());
@@ -33,8 +37,8 @@ public final class ModelLibraryServerMain {
             case "stub" -> new StubRunExecutor();
             default -> throw new IllegalArgumentException("Unsupported runtime executor '" + runtimeExecutorType + "'");
         };
-        RunService runService = new RunService(service, runExecutor, new InMemoryRunStatusStore());
-        ModelLibraryRoutes routes = new ModelLibraryRoutes(service, runService);
+        RunService runService = new RunService(service, runExecutor, new InMemoryRunStatusStore(), new DefaultRunReadinessProbeSelector());
+        ModelLibraryRoutes routes = new ModelLibraryRoutes(service, runService, kafkaDefaults);
 
         var binding = Http.get(actorSystem)
             .newServerAt(host, port)

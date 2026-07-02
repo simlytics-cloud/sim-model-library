@@ -39,6 +39,13 @@ import { ModelService, RunStatus } from '../../services/model.service';
               <label>Message:</label>
               <span>{{run.message}}</span>
             </div>
+            <div class="info-item" *ngIf="run.currentSimulationTime?.value !== undefined && run.currentSimulationTime?.value !== null">
+              <label>Current Simulation Time:</label>
+              <span>
+                {{run.currentSimulationTime?.value}}
+                <span *ngIf="run.currentSimulationTime?.timeType"> ({{run.currentSimulationTime?.timeType}})</span>
+              </span>
+            </div>
           </div>
 
           <mat-divider></mat-divider>

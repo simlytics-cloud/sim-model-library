@@ -101,18 +101,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /v1/run-config/defaults:
-    get:
-      summary: Get default run configuration values
-      operationId: getRunConfigDefaults
-      responses:
-        '200':
-          description: Default Kafka values for run configuration
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/KafkaDefaultsResponse'
-
 components:
 
   parameters:
@@ -403,31 +391,6 @@ components:
           type: string
         currentSimulationTime:
           $ref: '#/components/schemas/CurrentSimulationTime'
-
-    KafkaDefaultsResponse:
-      type: object
-      required:
-        - bootstrapServers
-        - topic
-        - consumerGroup
-        - securityProtocol
-        - saslMechanism
-      properties:
-        bootstrapServers:
-          type: string
-          example: localhost:9092
-        topic:
-          type: string
-          example: simulation.${simulationId}.${coordinatorId}
-        consumerGroup:
-          type: string
-          example: ${modelInstanceId}
-        securityProtocol:
-          type: string
-          example: PLAINTEXT
-        saslMechanism:
-          type: string
-          example: ''
 
     CurrentSimulationTime:
       type: object

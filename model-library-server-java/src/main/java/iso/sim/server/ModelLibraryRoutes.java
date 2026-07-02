@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.catalog.ModelNotFoundException;
 import iso.sim.server.dto.ErrorResponse;
+import iso.sim.server.dto.run.KafkaDefaultsResponse;
 import iso.sim.server.dto.run.StartModelRunRequest;
+import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.InvalidRunRequestException;
 import iso.sim.server.service.RunNotFoundException;
 import iso.sim.server.service.RunService;
@@ -27,19 +29,47 @@ import java.nio.charset.StandardCharsets;
 public class ModelLibraryRoutes extends AllDirectives {
     private final ModelCatalogService service;
     private final RunService runService;
+    private final KafkaDefaultsResponse kafkaDefaults;
     private final ObjectMapper objectMapper;
 
     public ModelLibraryRoutes(ModelCatalogService service) {
-        this(service, new RunService(service), new ObjectMapper());
+        this(
+            service,
+            new RunService(service, new DefaultRunReadinessProbeSelector()),
+            new KafkaDefaultsResponse(
+                "localhost:9092",
+                "simulation.${simulationId}.${coordinatorId}",
+                "${modelInstanceId}",
+                "PLAINTEXT",
+                ""
+            ),
+            new ObjectMapper()
+        );
     }
 
     public ModelLibraryRoutes(ModelCatalogService service, RunService runService) {
-        this(service, runService, new ObjectMapper());
+        this(
+            service,
+            runService,
+            new KafkaDefaultsResponse(
+                "localhost:9092",
+                "simulation.${simulationId}.${coordinatorId}",
+                "${modelInstanceId}",
+                "PLAINTEXT",
+                ""
+            ),
+            new ObjectMapper()
+        );
     }
 
-    public ModelLibraryRoutes(ModelCatalogService service, RunService runService, ObjectMapper objectMapper) {
+    public ModelLibraryRoutes(ModelCatalogService service, RunService runService, KafkaDefaultsResponse kafkaDefaults) {
+        this(service, runService, kafkaDefaults, new ObjectMapper());
+    }
+
+    public ModelLibraryRoutes(ModelCatalogService service, RunService runService, KafkaDefaultsResponse kafkaDefaults, ObjectMapper objectMapper) {
         this.service = service;
         this.runService = runService;
+        this.kafkaDefaults = kafkaDefaults;
         this.objectMapper = objectMapper;
     }
 
@@ -106,6 +136,9 @@ public class ModelLibraryRoutes extends AllDirectives {
                             return completeError(StatusCodes.BAD_REQUEST, "INVALID_RUN_REQUEST", "Invalid run request");
                         }
                     }))
+                ),
+                path(PathMatchers.segment("run-config").slash("defaults"), () ->
+                    get(() -> completeJson(kafkaDefaults))
                 ),
                 path("runs", () -> get(() -> completeJson(runService.listRuns()))),
                 path(PathMatchers.segment("runs").slash(PathMatchers.segment()), runId ->

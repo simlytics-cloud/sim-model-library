@@ -36,6 +36,14 @@ import { ModelService, RunStatus } from '../../services/model.service';
         <td mat-cell *matCellDef="let run"> {{run.acceptedAt | date:'medium'}} </td>
       </ng-container>
 
+      <ng-container matColumnDef="currentSimulationTime">
+        <th mat-header-cell *matHeaderCellDef> Current Simulation Time </th>
+        <td mat-cell *matCellDef="let run">
+          {{run.currentSimulationTime?.value ?? '-'}}
+          <span *ngIf="run.currentSimulationTime?.timeType"> ({{run.currentSimulationTime?.timeType}})</span>
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef> Actions </th>
         <td mat-cell *matCellDef="let run">
@@ -75,7 +83,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
 })
 export class RunListComponent implements OnInit {
   runs: RunStatus[] = [];
-  displayedColumns: string[] = ['runId', 'modelId', 'status', 'acceptedAt', 'actions'];
+  displayedColumns: string[] = ['runId', 'modelId', 'status', 'acceptedAt', 'currentSimulationTime', 'actions'];
 
   constructor(private modelService: ModelService) {}
 

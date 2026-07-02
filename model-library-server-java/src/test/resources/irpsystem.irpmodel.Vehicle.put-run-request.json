@@ -1,0 +1,37 @@
+{
+  "runId": "run-vehicle-001",
+  "initializationParameters": {
+    "vehicleId": 1,
+    "capacity": 144.0,
+    "manufacturerLocation": {
+      "x": 42.3601,
+      "y": -71.0589
+    },
+    "costPerKm": 1.0,
+    "speedKmHr": 150.0,
+    "dailyKmTraveled": 0,
+    "deliveryRoute": {
+      "vehicleId": 1,
+      "deliveries": []
+    },
+    "location": {
+      "x": 172.0,
+      "y": 334.0
+    }
+  },
+  "kafka": {
+    "bootstrapServers": "kafka.example.com:9092",
+    "topic": "irp-system",
+    "securityProtocol": "PLAINTEXT"
+  },
+  "simulation": {
+    "simulationId": "sim-irp-001",
+    "modelInstanceId": "instance-irp-001",
+    "coordinatorId": "irp-demo-coordinator",
+    "timeMode": {
+      "mode": "fast-time",
+      "timeType": "double",
+      "secondsPerSimulationTimeUnit": 1.0
+    }
+  }
+}

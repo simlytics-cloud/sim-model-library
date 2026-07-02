@@ -11,9 +11,15 @@ import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.TimeModeDto;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
+import iso.sim.server.runtime.NoopRunHandle;
+import iso.sim.server.runtime.RunHandle;
+import iso.sim.server.runtime.RunResourceRegistry;
 import iso.sim.server.service.InvalidRunRequestException;
 import iso.sim.server.service.RunNotFoundException;
+import iso.sim.server.service.RunReadinessProbe;
+import iso.sim.server.service.RunReadinessResult;
 import iso.sim.server.service.RunService;
+import iso.sim.server.service.RunMonitor;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +36,17 @@ class RunServiceTest {
         new CatalogRepository(List.of("model-catalog.json"), objectMapper)
     );
     private final RecordingRunExecutor recordingExecutor = new RecordingRunExecutor();
-    private final RunService runService = new RunService(catalogService, recordingExecutor, new InMemoryRunStatusStore());
+    private final RunResourceRegistry runResourceRegistry = new RunResourceRegistry();
+    private final RunReadinessProbe immediateReadinessProbe = (context, handle) -> RunReadinessResult.ready("Runtime ready immediately");
+    private final RunMonitor noopMonitor = (context, runtimeHandle) -> new NoopRunHandle(context.getRunId());
+    private final RunService runService = new RunService(
+        catalogService,
+        recordingExecutor,
+        new InMemoryRunStatusStore(),
+        runResourceRegistry,
+        context -> immediateReadinessProbe,
+        noopMonitor
+    );
 
     @Test
     void startRunAcceptsValidRequestWithNewTimeMode() {
@@ -74,7 +90,29 @@ class RunServiceTest {
         RunStatusResponse status = runService.getRunStatus(response.getRunId());
         assertEquals("run-vehicle-001", status.getRunId());
         assertEquals("irpsystem.irpmodel.Vehicle", status.getModelId());
-        assertEquals("accepted", status.getStatus());
+        assertEquals("ready", status.getStatus());
+        assertNotNull(status.getReadyAt());
+        assertNotNull(runResourceRegistry.get("run-vehicle-001"));
+    }
+
+    @Test
+    void startRunMarksFailedWhenExecutorThrows() {
+        RunService failingRunService = new RunService(catalogService, context -> {
+            throw new IllegalStateException("boom");
+        }, new InMemoryRunStatusStore(), new RunResourceRegistry(), context -> immediateReadinessProbe, noopMonitor);
+
+        StartModelRunRequest request = new StartModelRunRequest(
+            "run-fail-001",
+            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            null
+        );
+
+        StartModelRunResponse response = failingRunService.startRun("irpsystem.irpmodel.Vehicle", request);
+        assertEquals("accepted", response.getStatus());
+
+        RunStatusResponse status = failingRunService.getRunStatus("run-fail-001");
+        assertEquals("failed", status.getStatus());
     }
 
     @Test
@@ -102,8 +140,9 @@ class RunServiceTest {
         private RunExecutionContext lastContext;
 
         @Override
-        public void start(RunExecutionContext context) {
+        public RunHandle start(RunExecutionContext context) {
             lastContext = context;
+            return new NoopRunHandle(context.getRunId());
         }
     }
 }

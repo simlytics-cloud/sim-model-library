@@ -376,6 +376,12 @@ Validation evidence for this phase is currently covered by:
 - Run status persistence now uses `RunStatusStore` with `InMemoryRunStatusStore` default.
 - Runtime selector is configured via HOCON:
   - `model.library.runtime.executor = "stub"`
+- Run configuration Kafka defaults are configured via HOCON and exposed to UI via `GET /v1/run-config/defaults`:
+  - `model.library.run-config.kafka-defaults.bootstrap-servers`
+  - `model.library.run-config.kafka-defaults.topic`
+  - `model.library.run-config.kafka-defaults.consumer-group`
+  - `model.library.run-config.kafka-defaults.security-protocol`
+  - `model.library.run-config.kafka-defaults.sasl-mechanism`
 - Unsupported executor values fail fast at startup to avoid silent misconfiguration.
 - No dependency was introduced on other `devs-foundry-dsl` modules or DEVS Streaming Framework.
 

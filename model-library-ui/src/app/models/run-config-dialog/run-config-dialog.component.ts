@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { ModelDetail } from '../../services/model.service';
+import { KafkaDefaults, ModelDetail, ModelService } from '../../services/model.service';
 import { MaterialDesignFrameworkModule } from '@ajsf/material';
 
 @Component({
@@ -123,6 +123,7 @@ export class RunConfigDialogComponent {
 
   constructor(
     private fb: FormBuilder,
+    private modelService: ModelService,
     public dialogRef: MatDialogRef<RunConfigDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { model: ModelDetail }
   ) {
@@ -152,6 +153,36 @@ export class RunConfigDialogComponent {
         saslMechanism: ['']
       })
     });
+
+    this.modelService.getKafkaDefaults().subscribe({
+      next: (defaults) => this.applyKafkaDefaults(defaults),
+      error: () => {
+        // Keep constructor defaults if server defaults are unavailable.
+      }
+    });
+  }
+
+  private applyKafkaDefaults(defaults: KafkaDefaults): void {
+    const simulationId = this.runForm.get('simulation.simulationId')?.value ?? '';
+    const coordinatorId = this.runForm.get('simulation.coordinatorId')?.value ?? '';
+    const modelInstanceId = this.runForm.get('simulation.modelInstanceId')?.value ?? '';
+
+    this.runForm.patchValue({
+      kafka: {
+        bootstrapServers: this.renderTemplate(defaults.bootstrapServers, simulationId, coordinatorId, modelInstanceId),
+        topic: this.renderTemplate(defaults.topic, simulationId, coordinatorId, modelInstanceId),
+        consumerGroup: this.renderTemplate(defaults.consumerGroup, simulationId, coordinatorId, modelInstanceId),
+        securityProtocol: this.renderTemplate(defaults.securityProtocol, simulationId, coordinatorId, modelInstanceId),
+        saslMechanism: this.renderTemplate(defaults.saslMechanism, simulationId, coordinatorId, modelInstanceId)
+      }
+    });
+  }
+
+  private renderTemplate(template: string, simulationId: string, coordinatorId: string, modelInstanceId: string): string {
+    return (template || '')
+      .replaceAll('${simulationId}', simulationId)
+      .replaceAll('${coordinatorId}', coordinatorId)
+      .replaceAll('${modelInstanceId}', modelInstanceId);
   }
 
   private getModelIdSegments(modelId: string | undefined): string[] {

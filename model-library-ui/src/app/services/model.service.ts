@@ -48,6 +48,22 @@ export interface RunStatus {
   startedAt?: string;
   completedAt?: string;
   message?: string;
+  currentSimulationTime?: {
+    value?: number;
+    timeType?: string;
+    secondsPerSimulationTimeUnit?: number;
+    sourceMessageType?: string;
+    sourceMessageId?: string;
+    updatedAt?: string;
+  };
+}
+
+export interface KafkaDefaults {
+  bootstrapServers: string;
+  topic: string;
+  consumerGroup: string;
+  securityProtocol: string;
+  saslMechanism: string;
 }
 
 @Injectable({
@@ -72,6 +88,10 @@ export class ModelService {
 
   getRuns(): Observable<RunStatus[]> {
     return this.http.get<RunStatus[]>(`${this.apiUrl}/runs`);
+  }
+
+  getKafkaDefaults(): Observable<KafkaDefaults> {
+    return this.http.get<KafkaDefaults>(`${this.apiUrl}/run-config/defaults`);
   }
 
   getRunStatus(runId: string): Observable<RunStatus> {

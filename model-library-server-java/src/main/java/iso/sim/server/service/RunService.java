@@ -8,26 +8,109 @@ import iso.sim.server.dto.run.StartModelRunResponse;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.executor.StubRunExecutor;
+import iso.sim.server.runtime.RunResourceRegistry;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import iso.sim.server.store.RunStatusStore;
 
-import java.time.Instant;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.concurrent.Executors;
+
 import java.util.List;
 import java.util.UUID;
 
 public class RunService {
     private final ModelCatalogService modelCatalogService;
-    private final RunExecutor runExecutor;
     private final RunStatusStore runStatusStore;
+    private final RunLifecycleService runLifecycleService;
+    private final RunResourceRegistry runResourceRegistry;
+    private final RunTerminalCoordinator runTerminalCoordinator;
+    private final RunLifecycleManager runLifecycleManager;
 
-    public RunService(ModelCatalogService modelCatalogService) {
-        this(modelCatalogService, new StubRunExecutor(), new InMemoryRunStatusStore());
+    public RunService(ModelCatalogService modelCatalogService, RunReadinessProbeSelector runReadinessProbeSelector) {
+        this(modelCatalogService, new StubRunExecutor(), new InMemoryRunStatusStore(), new RunResourceRegistry(), runReadinessProbeSelector);
     }
 
-    public RunService(ModelCatalogService modelCatalogService, RunExecutor runExecutor, RunStatusStore runStatusStore) {
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunReadinessProbeSelector runReadinessProbeSelector
+    ) {
+        this(modelCatalogService, runExecutor, runStatusStore, new RunResourceRegistry(), runReadinessProbeSelector);
+    }
+
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        RunReadinessProbeSelector runReadinessProbeSelector
+    ) {
+        this(
+            modelCatalogService,
+            runExecutor,
+            runStatusStore,
+            runResourceRegistry,
+            runReadinessProbeSelector,
+            buildDefaultMonitor(runStatusStore, runResourceRegistry)
+        );
+    }
+
+    private static RunMonitor buildDefaultMonitor(RunStatusStore runStatusStore, RunResourceRegistry runResourceRegistry) {
+        RunLifecycleService lifecycleService = new RunLifecycleService(runStatusStore);
+        RunTerminalCoordinator terminalCoordinator = new RunTerminalCoordinator(lifecycleService, runStatusStore, runResourceRegistry);
+        return new KafkaIsoRunMonitor(
+            lifecycleService,
+            runStatusStore,
+            terminalCoordinator,
+            new Iso21175MessageParser(new ObjectMapper()),
+            new DefaultKafkaConsumerAdapterFactory(),
+            Executors.newSingleThreadExecutor()
+        );
+    }
+
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        RunReadinessProbeSelector runReadinessProbeSelector,
+        RunMonitor runMonitor
+    ) {
+        this(
+            modelCatalogService,
+            runExecutor,
+            runStatusStore,
+            runResourceRegistry,
+            runReadinessProbeSelector,
+            runMonitor,
+            new RunLifecycleService(runStatusStore)
+        );
+    }
+
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        RunReadinessProbeSelector runReadinessProbeSelector,
+        RunMonitor runMonitor,
+        RunLifecycleService runLifecycleService
+    ) {
         this.modelCatalogService = modelCatalogService;
-        this.runExecutor = runExecutor;
         this.runStatusStore = runStatusStore;
+        this.runLifecycleService = runLifecycleService;
+        this.runResourceRegistry = runResourceRegistry;
+        this.runTerminalCoordinator = new RunTerminalCoordinator(runLifecycleService, runStatusStore, runResourceRegistry);
+        this.runLifecycleManager = new RunLifecycleManager(
+            runExecutor,
+            runLifecycleService,
+            runResourceRegistry,
+            runTerminalCoordinator,
+            runReadinessProbeSelector,
+            runMonitor
+        );
     }
 
     public StartModelRunResponse startRun(String modelId, StartModelRunRequest request) {
@@ -37,24 +120,17 @@ public class RunService {
         String runId = request.getRunId() != null && !request.getRunId().isBlank()
             ? request.getRunId()
             : "run-" + UUID.randomUUID();
-        String acceptedAt = Instant.now().toString();
         String statusUrl = "/v1/runs/" + runId;
-        RunStatusResponse status = new RunStatusResponse(
-            runId,
-            modelId,
-            "accepted",
-            acceptedAt,
-            "Run request accepted; backend start is stubbed for Phase 1E"
-        );
-        runStatusStore.save(status);
-        runExecutor.start(new RunExecutionContext(runId, modelId, request));
+        RunStatusResponse status = runLifecycleService.markAccepted(runId, modelId, "Run request accepted");
+
+        runLifecycleManager.startRun(new RunExecutionContext(runId, modelId, request));
 
         return new StartModelRunResponse(
             runId,
             modelId,
-            status.getStatus(),
+            "accepted",
             statusUrl,
-            acceptedAt,
+            status.getAcceptedAt(),
             status.getMessage()
         );
     }
@@ -73,6 +149,10 @@ public class RunService {
 
     public RunStatusStore getRunStatusStore() {
         return runStatusStore;
+    }
+
+    public RunResourceRegistry getRunResourceRegistry() {
+        return runResourceRegistry;
     }
 
     private void validateRequest(StartModelRunRequest request) {
