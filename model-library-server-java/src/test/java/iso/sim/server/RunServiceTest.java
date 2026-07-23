@@ -8,7 +8,9 @@ import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
 import iso.sim.server.dto.run.StartModelRunResponse;
 import iso.sim.server.dto.run.RunStatusResponse;
+import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.dto.run.TimeModeDto;
+import iso.sim.server.dto.run.TimeType;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.runtime.NoopRunHandle;
@@ -27,6 +29,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,7 +61,7 @@ class RunServiceTest {
                 "sim-irp-001",
                 "instance-irp-001",
                 null,
-                new TimeModeDto("fast-time", "long", 3600.0)
+                new TimeModeDto(TimeMode.FAST_TIME, TimeType.LONG, 3600.0)
             )
         );
 
@@ -66,8 +69,8 @@ class RunServiceTest {
         assertEquals("run-vehicle-002", response.getRunId());
         RunExecutionContext context = recordingExecutor.lastContext;
         assertNotNull(context);
-        assertEquals("fast-time", context.getRequest().getSimulation().getTimeMode().getMode());
-        assertEquals("long", context.getRequest().getSimulation().getTimeMode().getTimeType());
+        assertEquals(TimeMode.FAST_TIME, context.getRequest().getSimulation().getTimeMode().getMode());
+        assertEquals(TimeType.LONG, context.getRequest().getSimulation().getTimeMode().getTimeType());
         assertEquals(3600.0, context.getRequest().getSimulation().getTimeMode().getSecondsPerSimulationTimeUnit());
     }
 
@@ -136,13 +139,88 @@ class RunServiceTest {
         assertTrue(exception.getMessage().contains("missing-run"));
     }
 
+    @Test
+    void cancelRunStopsResourcesAndMarksCanceled() {
+        StartModelRunRequest request = new StartModelRunRequest(
+            "run-cancel-001",
+            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            null
+        );
+
+        runService.startRun("irpsystem.irpmodel.Vehicle", request);
+
+        RunStatusResponse canceled = runService.cancelRun("run-cancel-001");
+        assertEquals("canceled", canceled.getStatus());
+        assertEquals("Run canceled by request", canceled.getMessage());
+        assertTrue(recordingExecutor.lastHandle.wasStopped());
+        assertEquals("canceled", runService.getRunStatus("run-cancel-001").getStatus());
+        assertNull(runResourceRegistry.get("run-cancel-001"));
+    }
+
+    @Test
+    void cancelRunReturnsCurrentStatusWhenRunIsAlreadyTerminal() {
+        RunService failingRunService = new RunService(catalogService, context -> {
+            throw new IllegalStateException("boom");
+        }, new InMemoryRunStatusStore(), new RunResourceRegistry(), context -> immediateReadinessProbe, noopMonitor);
+
+        StartModelRunRequest request = new StartModelRunRequest(
+            "run-failed-001",
+            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            null
+        );
+        failingRunService.startRun("irpsystem.irpmodel.Vehicle", request);
+
+        RunStatusResponse canceled = failingRunService.cancelRun("run-failed-001");
+        assertEquals("failed", canceled.getStatus());
+        assertEquals("failed", failingRunService.getRunStatus("run-failed-001").getStatus());
+    }
+
+    @Test
+    void cancelRunThrowsForUnknownRun() {
+        RunNotFoundException exception = assertThrows(RunNotFoundException.class,
+            () -> runService.cancelRun("missing-run"));
+        assertTrue(exception.getMessage().contains("missing-run"));
+    }
+
     private static class RecordingRunExecutor implements RunExecutor {
         private RunExecutionContext lastContext;
+        private RecordingRunHandle lastHandle;
 
         @Override
         public RunHandle start(RunExecutionContext context) {
             lastContext = context;
-            return new NoopRunHandle(context.getRunId());
+            lastHandle = new RecordingRunHandle(context.getRunId());
+            return lastHandle;
+        }
+    }
+
+    private static class RecordingRunHandle implements RunHandle {
+        private final String runId;
+        private boolean stopped;
+
+        private RecordingRunHandle(String runId) {
+            this.runId = runId;
+        }
+
+        @Override
+        public String runId() {
+            return runId;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return !stopped;
+        }
+
+        @Override
+        public void stop() {
+            stopped = true;
+        }
+
+        private boolean wasStopped() {
+            return stopped;
         }
     }
 }

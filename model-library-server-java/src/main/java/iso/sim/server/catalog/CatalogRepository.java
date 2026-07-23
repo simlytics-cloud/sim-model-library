@@ -2,8 +2,8 @@ package iso.sim.server.catalog;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import iso.sim.server.dto.catalog.AtomicModelDto;
 import iso.sim.server.dto.catalog.ModelCatalogDto;
+import iso.sim.server.dto.catalog.ModelDto;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +23,7 @@ public class CatalogRepository {
     }
 
     public ModelCatalogDto loadCatalog() {
-        List<AtomicModelDto> allModels = resourcePaths.stream().flatMap(path -> {
+        List<ModelDto> allModels = resourcePaths.stream().flatMap(path -> {
             InputStream stream = getClass().getClassLoader().getResourceAsStream(path);
             if (stream == null) {
                 throw new IllegalStateException("Model catalog resource '" + path + "' was not found");
@@ -45,7 +45,7 @@ public class CatalogRepository {
         if (catalog.getModels().isEmpty()) {
             throw new IllegalStateException("Model catalog must contain at least one model");
         }
-        for (AtomicModelDto model : catalog.getModels()) {
+        for (ModelDto model : catalog.getModels()) {
             if (model.getModelId().isBlank()) {
                 throw new IllegalStateException("Each model must define a non-empty modelId");
             }

@@ -14,9 +14,12 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class KafkaIsoRunMonitor implements RunMonitor {
     private static final Duration POLL_INTERVAL = Duration.ofMillis(250);
+    private static final Logger logger = Logger.getLogger(KafkaIsoRunMonitor.class.getName());
 
     private final RunLifecycleService runLifecycleService;
     private final RunStatusStore runStatusStore;
@@ -50,6 +53,10 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             ? configuredGroup
             : "model-library-run-monitor-" + runId;
 
+        logger.info(() -> "Starting Kafka run monitor for runId=" + runId
+            + ", topic=" + topic
+            + ", consumerGroup=" + consumerGroup);
+
         KafkaConsumerAdapter consumer = consumerFactory.create(context, topic, consumerGroup);
         AtomicBoolean active = new AtomicBoolean(true);
 
@@ -69,6 +76,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             @Override
             public void stop() {
                 if (active.compareAndSet(true, false)) {
+                    logger.info(() -> "Stopping Kafka run monitor for runId=" + runId);
                     consumer.close();
                 }
             }
@@ -79,27 +87,41 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         String runId = context.getRunId();
         try {
             while (active.get()) {
-                for (String rawValue : consumer.poll(POLL_INTERVAL)) {
+                var messages = consumer.poll(POLL_INTERVAL);
+                if (!messages.isEmpty()) {
+                    logger.fine(() -> "Polled " + messages.size() + " Kafka message(s) for runId=" + runId);
+                }
+                for (String rawValue : messages) {
                     if (!active.get()) {
-                        break;
+                        // break;
                     }
                     Optional<Iso21175Message> maybeMessage = parser.parse(rawValue);
                     if (maybeMessage.isEmpty()) {
+                        logger.fine(() -> "Ignoring Kafka message for runId=" + runId + " because parsing/validation failed");
                         continue;
                     }
                     Iso21175Message message = maybeMessage.get();
                     if (!runId.equals(message.getSimulationRunId())) {
-                        continue;
+                        logger.fine(() -> "Ignoring Kafka message with simulationRunId=" + message.getSimulationRunId()
+                            + " while monitoring runId=" + runId
+                            + ", messageType=" + message.getMessageType());
+                        //continue;
                     }
+                    logger.fine(() -> "Processing Kafka message for runId=" + runId
+                        + ", messageType=" + message.getMessageType()
+                        + ", messageId=" + message.getMessageId());
                     updateCurrentSimulationTime(context, message);
                     if (handleLifecycleMessage(runId, message)) {
                         active.set(false);
+                        logger.info(() -> "Stopping Kafka monitor loop after terminal lifecycle event for runId=" + runId
+                            + ", messageType=" + message.getMessageType());
                         consumer.close();
                         return;
                     }
                 }
             }
         } catch (RuntimeException ex) {
+            logger.log(Level.SEVERE, "Kafka monitor loop failed for runId=" + runId + ": " + ex.getMessage(), ex);
             runTerminalCoordinator.failRun(runId, "Run monitor failed unexpectedly: " + ex.getMessage());
             active.set(false);
             consumer.close();
@@ -111,21 +133,33 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         if ("NextInternalTimeReport".equals(messageType)) {
             RunStatusResponse current = runStatusStore.get(runId);
             if (current != null && "ready".equals(current.getStatus())) {
+                logger.info(() -> "Marking run as running from messageType=NextInternalTimeReport for runId=" + runId
+                    + ", messageId=" + message.getMessageId());
                 runLifecycleService.markRunning(runId, "Simulation reported progress");
+            } else {
+                logger.fine(() -> "Received NextInternalTimeReport but run state is not ready for runId=" + runId
+                    + ", currentStatus=" + (current == null ? "null" : current.getStatus()));
             }
             return false;
         }
 
         if ("ModelTerminated".equals(messageType)) {
+            logger.info(() -> "Received ModelTerminated for runId=" + runId
+                + ", messageId=" + message.getMessageId());
             runTerminalCoordinator.completeRun(runId, "Simulation terminated");
             return true;
         }
 
         if ("ErrorReport".equals(messageType) && isErrorOrFatal(message)) {
+            logger.warning(() -> "Received ErrorReport with terminal severity for runId=" + runId
+                + ", messageId=" + message.getMessageId());
             runTerminalCoordinator.failRun(runId, "Simulation reported error");
             return true;
         }
 
+        logger.fine(() -> "Ignoring non-lifecycle Kafka message for runId=" + runId
+            + ", messageType=" + messageType
+            + ", messageId=" + message.getMessageId());
         return false;
     }
 
@@ -144,6 +178,9 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         Double value = maybeValue.get();
         CurrentSimulationTimeDto existing = current.getCurrentSimulationTime();
         if (existing != null && existing.getValue() != null && value < existing.getValue()) {
+            logger.fine(() -> "Ignoring simulation time rollback for runId=" + runId
+                + ", incomingValue=" + value
+                + ", existingValue=" + existing.getValue());
             return;
         }
 
@@ -153,7 +190,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
 
         CurrentSimulationTimeDto next = new CurrentSimulationTimeDto(
             value,
-            timeMode == null ? null : timeMode.getTimeType(),
+            timeMode == null || timeMode.getTimeType() == null ? null : timeMode.getTimeType().getValue(),
             timeMode == null ? null : timeMode.getSecondsPerSimulationTimeUnit(),
             message.getMessageType(),
             message.getMessageId(),
@@ -171,6 +208,10 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             current.getMessage(),
             next
         ));
+        logger.fine(() -> "Updated currentSimulationTime for runId=" + runId
+            + ", value=" + value
+            + ", sourceMessageType=" + message.getMessageType()
+            + ", sourceMessageId=" + message.getMessageId());
     }
 
     private Optional<Double> resolveCurrentSimulationTimeValue(Iso21175Message message) {

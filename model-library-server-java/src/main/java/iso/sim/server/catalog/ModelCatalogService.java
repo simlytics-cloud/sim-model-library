@@ -1,9 +1,9 @@
 package iso.sim.server.catalog;
 
-import iso.sim.server.dto.catalog.AtomicModelDto;
-import iso.sim.server.dto.catalog.AtomicModelSummaryDto;
 import iso.sim.server.dto.catalog.ModelCatalogDto;
 import iso.sim.server.dto.catalog.ModelListResponse;
+import iso.sim.server.dto.catalog.ModelDto;
+import iso.sim.server.dto.catalog.ModelSummaryDto;
 
 import java.util.Comparator;
 import java.util.List;
@@ -18,9 +18,9 @@ public class ModelCatalogService {
 
     public ModelListResponse listModels() {
         ensureCatalogLoaded();
-        List<AtomicModelSummaryDto> summaries = catalog.getModels().stream()
-            .sorted(Comparator.comparing(AtomicModelDto::getModelId))
-            .map(it -> new AtomicModelSummaryDto(
+        List<ModelSummaryDto> summaries = catalog.getModels().stream()
+            .sorted(Comparator.comparing(ModelDto::getModelId))
+            .map(it -> new ModelSummaryDto(
                 it.getModelId(),
                 it.getName(),
                 it.getDescription(),
@@ -30,7 +30,7 @@ public class ModelCatalogService {
         return new ModelListResponse(summaries);
     }
 
-    public AtomicModelDto getModel(String modelId) {
+    public ModelDto getModel(String modelId) {
         ensureCatalogLoaded();
         return catalog.getModels().stream()
             .filter(model -> model.getModelId().equals(modelId))

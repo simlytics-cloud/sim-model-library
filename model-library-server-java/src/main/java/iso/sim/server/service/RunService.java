@@ -17,9 +17,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.Executors;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class RunService {
+    private static final Set<String> TERMINAL_STATUSES = Set.of("completed", "failed", "canceled");
+
     private final ModelCatalogService modelCatalogService;
     private final RunStatusStore runStatusStore;
     private final RunLifecycleService runLifecycleService;
@@ -145,6 +148,19 @@ public class RunService {
 
     public List<RunStatusResponse> listRuns() {
         return runStatusStore.getAll();
+    }
+
+    public RunStatusResponse cancelRun(String runId) {
+        RunStatusResponse current = runStatusStore.get(runId);
+        if (current == null) {
+            throw new RunNotFoundException(runId);
+        }
+        if (TERMINAL_STATUSES.contains(current.getStatus())) {
+            return current;
+        }
+
+        runResourceRegistry.stop(runId);
+        return runLifecycleService.markCanceled(runId, "Run canceled by request");
     }
 
     public RunStatusStore getRunStatusStore() {

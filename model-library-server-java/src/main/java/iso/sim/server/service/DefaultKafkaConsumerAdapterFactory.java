@@ -13,8 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterFactory {
+    private static final Logger logger = Logger.getLogger(DefaultKafkaConsumerAdapterFactory.class.getName());
+
     @Override
     public KafkaConsumerAdapter create(RunExecutionContext context, String topic, String consumerGroup) {
         KafkaConfigurationDto kafkaConfig = context.getRequest().getKafka();
@@ -38,8 +41,16 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
             }
         }
 
+        String runId = context.getRunId();
+        logger.info(() -> "Creating Kafka consumer for runId=" + runId
+            + ", topic=" + topic
+            + ", consumerGroup=" + consumerGroup
+            + ", bootstrapServers=" + kafkaConfig.getBootstrapServers()
+            + ", autoOffsetReset=" + properties.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
+
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
         consumer.subscribe(List.of(topic));
+        logger.info(() -> "Subscribed Kafka consumer for runId=" + runId + " to topic=" + topic);
         return new KafkaConsumerAdapter() {
             @Override
             public List<String> poll(Duration timeout) {

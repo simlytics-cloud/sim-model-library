@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -71,7 +71,11 @@ import { ModelService, RunStatus } from '../../services/model.service';
           </div>
         </mat-card-content>
         <mat-card-actions>
-           <button mat-button color="primary" (click)="refresh()">REFRESH</button>
+           <button mat-button color="primary" (click)="refresh()" [disabled]="deleting">REFRESH</button>
+           <button mat-button color="warn" (click)="deleteRun()" [disabled]="deleting">
+             <mat-icon>delete</mat-icon>
+             DELETE
+           </button>
         </mat-card-actions>
       </mat-card>
     </div>
@@ -145,9 +149,11 @@ import { ModelService, RunStatus } from '../../services/model.service';
 export class RunDetailComponent implements OnInit {
   run?: RunStatus;
   error?: string;
+  deleting = false;
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private modelService: ModelService
   ) {}
 
@@ -170,5 +176,29 @@ export class RunDetailComponent implements OnInit {
 
   refresh(): void {
     this.loadRun();
+  }
+
+  deleteRun(): void {
+    if (!this.run || this.deleting) {
+      return;
+    }
+    if (!window.confirm(`Delete run '${this.run.runId}'?`)) {
+      return;
+    }
+
+    const runId = this.run.runId;
+    this.deleting = true;
+    this.modelService.deleteRun(runId).subscribe({
+      next: () => {
+        this.router.navigate(['/runs']);
+      },
+      error: (err) => {
+        console.error('Error deleting run', err);
+        this.error = 'Failed to delete run.';
+      },
+      complete: () => {
+        this.deleting = false;
+      }
+    });
   }
 }

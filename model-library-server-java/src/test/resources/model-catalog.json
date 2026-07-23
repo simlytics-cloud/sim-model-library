@@ -4,6 +4,12 @@
       "modelId": "irpsystem.irpmodel.Vehicle",
       "name": "Vehicle",
       "description": "Vehicle test model",
+      "timeMode": {
+        "mode": "scaled-time",
+        "timeType": "double",
+        "secondsPerSimulationTimeUnit": 1.0,
+        "realTimeFactor": 2.0
+      },
       "implementationLanguage": "java",
       "inputPorts": [],
       "outputPorts": [],

@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { KafkaDefaults, ModelDetail, ModelService } from '../../services/model.service';
+import { KafkaDefaults, ModelDetail, ModelService, TimeModeConfig } from '../../services/model.service';
 import { MaterialDesignFrameworkModule } from '@ajsf/material';
 
 @Component({
@@ -62,6 +62,37 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
             <mat-label>Coordinator ID</mat-label>
             <input matInput formControlName="coordinatorId">
           </mat-form-field>
+          <div formGroupName="timeMode">
+            <mat-form-field appearance="fill">
+              <mat-label>Time Mode</mat-label>
+              <mat-select formControlName="mode">
+                <mat-option value="real-time">real-time</mat-option>
+                <mat-option value="scaled-time">scaled-time</mat-option>
+                <mat-option value="fast-time">fast-time</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="fill">
+              <mat-label>Time Type</mat-label>
+              <mat-select formControlName="timeType">
+                <mat-option value="double">double</mat-option>
+                <mat-option value="long">long</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="fill">
+              <mat-label>Seconds Per Simulation Time Unit</mat-label>
+              <input matInput type="number" formControlName="secondsPerSimulationTimeUnit">
+            </mat-form-field>
+            <mat-form-field appearance="fill" *ngIf="isScaledTimeMode()">
+              <mat-label>Real Time Factor</mat-label>
+              <input matInput type="number" formControlName="realTimeFactor">
+              <mat-error *ngIf="runForm.get('simulation.timeMode.realTimeFactor')?.hasError('required')">
+                Real Time Factor is required for scaled-time.
+              </mat-error>
+              <mat-error *ngIf="runForm.get('simulation.timeMode.realTimeFactor')?.hasError('min')">
+                Real Time Factor must be greater than 0.
+              </mat-error>
+            </mat-form-field>
+          </div>
         </div>
 
         <h3>Kafka Configuration</h3>
@@ -131,6 +162,7 @@ export class RunConfigDialogComponent {
     const simulationId = 'sim-001';
     const coordinatorId = modelIdSegments.length > 1 ? modelIdSegments[modelIdSegments.length - 2] : 'demo-coordinator';
     const modelInstanceId = modelIdSegments.length > 0 ? modelIdSegments[modelIdSegments.length - 1] : 'instance-001';
+    const defaultTimeMode = this.resolveDefaultTimeMode(data.model.timeMode);
     const defaultParams = data.model.defaultParameterSet;
     this.initializationSchema = this.buildInitializationSchema(
       data.model.initializationSchema,
@@ -143,7 +175,13 @@ export class RunConfigDialogComponent {
       simulation: this.fb.group({
         simulationId: [simulationId],
         modelInstanceId: [modelInstanceId],
-        coordinatorId: [coordinatorId]
+        coordinatorId: [coordinatorId],
+        timeMode: this.fb.group({
+          mode: [defaultTimeMode.mode, Validators.required],
+          timeType: [defaultTimeMode.timeType, Validators.required],
+          secondsPerSimulationTimeUnit: [defaultTimeMode.secondsPerSimulationTimeUnit],
+          realTimeFactor: [defaultTimeMode.realTimeFactor]
+        })
       }),
       kafka: this.fb.group({
         bootstrapServers: ['localhost:9092'],
@@ -160,6 +198,11 @@ export class RunConfigDialogComponent {
         // Keep constructor defaults if server defaults are unavailable.
       }
     });
+
+    this.runForm.get('simulation.timeMode.mode')?.valueChanges.subscribe(() => {
+      this.updateRealTimeFactorValidation();
+    });
+    this.updateRealTimeFactorValidation();
   }
 
   private applyKafkaDefaults(defaults: KafkaDefaults): void {
@@ -190,6 +233,42 @@ export class RunConfigDialogComponent {
       .split('.')
       .map((part) => part.trim())
       .filter((part) => part.length > 0);
+  }
+
+  private resolveDefaultTimeMode(modelTimeMode?: TimeModeConfig): TimeModeConfig {
+    if (!modelTimeMode) {
+      return {
+        mode: 'fast-time',
+        timeType: 'double',
+        secondsPerSimulationTimeUnit: 1.0
+      };
+    }
+
+    return {
+      mode: modelTimeMode.mode ?? 'fast-time',
+      timeType: modelTimeMode.timeType ?? 'double',
+      secondsPerSimulationTimeUnit: modelTimeMode.secondsPerSimulationTimeUnit ?? 1.0,
+      realTimeFactor: modelTimeMode.mode === 'scaled-time' ? modelTimeMode.realTimeFactor : undefined
+    };
+  }
+
+  isScaledTimeMode(): boolean {
+    return this.runForm.get('simulation.timeMode.mode')?.value === 'scaled-time';
+  }
+
+  private updateRealTimeFactorValidation(): void {
+    const realTimeFactorControl = this.runForm.get('simulation.timeMode.realTimeFactor');
+    if (!realTimeFactorControl) {
+      return;
+    }
+
+    if (this.isScaledTimeMode()) {
+      realTimeFactorControl.setValidators([Validators.required, Validators.min(Number.EPSILON)]);
+    } else {
+      realTimeFactorControl.clearValidators();
+    }
+
+    realTimeFactorControl.updateValueAndValidity();
   }
 
   private buildInitializationSchema(initializationSchema: any, messageSchemas?: { [key: string]: any }): any {
@@ -257,6 +336,9 @@ export class RunConfigDialogComponent {
   onRun(): void {
     if (this.runForm.valid && this.hasInitializationSchema) {
       const rawValue = this.runForm.value;
+      if (rawValue?.simulation?.timeMode?.mode !== 'scaled-time') {
+        delete rawValue.simulation.timeMode.realTimeFactor;
+      }
       this.dialogRef.close(rawValue);
     }
   }

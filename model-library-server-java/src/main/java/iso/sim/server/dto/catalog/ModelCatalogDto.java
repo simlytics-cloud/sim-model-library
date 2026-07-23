@@ -8,14 +8,14 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ModelCatalogDto {
-    private final List<AtomicModelDto> models;
+    private final List<ModelDto> models;
 
     @JsonCreator
-    public ModelCatalogDto(@JsonProperty("models") List<AtomicModelDto> models) {
+    public ModelCatalogDto(@JsonProperty("models") List<ModelDto> models) {
         this.models = models;
     }
 
-    public List<AtomicModelDto> getModels() {
+    public List<ModelDto> getModels() {
         return models;
     }
 }

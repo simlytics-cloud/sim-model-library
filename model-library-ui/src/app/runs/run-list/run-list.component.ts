@@ -1,9 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Subject, timer } from 'rxjs';
+import { switchMap, takeUntil } from 'rxjs/operators';
 import { ModelService, RunStatus } from '../../services/model.service';
 
 @Component({
@@ -50,6 +52,14 @@ import { ModelService, RunStatus } from '../../services/model.service';
           <button mat-icon-button [routerLink]="['/runs', run.runId]" title="View Details">
             <mat-icon>visibility</mat-icon>
           </button>
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deleteRun(run)"
+            [disabled]="deletingRunIds.has(run.runId)"
+            title="Delete Run">
+            <mat-icon>delete</mat-icon>
+          </button>
         </td>
       </ng-container>
 
@@ -81,15 +91,47 @@ import { ModelService, RunStatus } from '../../services/model.service';
     .canceled { background-color: #ffccbc; color: #e64a19; }
   `]
 })
-export class RunListComponent implements OnInit {
+export class RunListComponent implements OnInit, OnDestroy {
   runs: RunStatus[] = [];
+  deletingRunIds = new Set<string>();
   displayedColumns: string[] = ['runId', 'modelId', 'status', 'acceptedAt', 'currentSimulationTime', 'actions'];
+  private readonly destroy$ = new Subject<void>();
 
   constructor(private modelService: ModelService) {}
 
   ngOnInit(): void {
-    this.modelService.getRuns().subscribe(runs => {
+    timer(0, 1000).pipe(
+      switchMap(() => this.modelService.getRuns()),
+      takeUntil(this.destroy$)
+    ).subscribe(runs => {
       this.runs = runs.sort((a, b) => b.acceptedAt.localeCompare(a.acceptedAt));
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  deleteRun(run: RunStatus): void {
+    if (this.deletingRunIds.has(run.runId)) {
+      return;
+    }
+    if (!window.confirm(`Delete run '${run.runId}'?`)) {
+      return;
+    }
+
+    this.deletingRunIds.add(run.runId);
+    this.modelService.deleteRun(run.runId).subscribe({
+      next: (updatedRun) => {
+        this.runs = this.runs.map(currentRun => currentRun.runId === updatedRun.runId ? updatedRun : currentRun);
+      },
+      error: (err) => {
+        console.error('Error deleting run', err);
+      },
+      complete: () => {
+        this.deletingRunIds.delete(run.runId);
+      }
     });
   }
 }

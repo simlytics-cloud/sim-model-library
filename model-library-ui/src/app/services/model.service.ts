@@ -27,8 +27,19 @@ export interface Parameter {
   defaultValue?: any;
 }
 
+export type TimeMode = 'real-time' | 'scaled-time' | 'fast-time';
+export type TimeType = 'double' | 'long';
+
+export interface TimeModeConfig {
+  mode: TimeMode;
+  timeType: TimeType;
+  secondsPerSimulationTimeUnit?: number;
+  realTimeFactor?: number;
+}
+
 export interface ModelDetail extends ModelSummary {
   implementationLanguage: string;
+  timeMode?: TimeModeConfig;
   inputPorts: Port[];
   outputPorts: Port[];
   parameters: Parameter[];
@@ -96,5 +107,9 @@ export class ModelService {
 
   getRunStatus(runId: string): Observable<RunStatus> {
     return this.http.get<RunStatus>(`${this.apiUrl}/runs/${runId}`);
+  }
+
+  deleteRun(runId: string): Observable<RunStatus> {
+    return this.http.delete<RunStatus>(`${this.apiUrl}/runs/${runId}`);
   }
 }

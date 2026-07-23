@@ -26,7 +26,7 @@ This README is a living document and should be updated as phases are completed a
 
 Implement a model library service that complies with the OpenAPI contract in:
 
-- `model-library/open-api/model-libary-open-api-spec.yaml`
+- `model-library/model-library-server-java/src/main/resources/open-api/model-libary-open-api-spec.yaml`
 
 Required endpoints:
 

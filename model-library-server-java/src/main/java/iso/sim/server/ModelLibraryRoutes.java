@@ -142,13 +142,22 @@ public class ModelLibraryRoutes extends AllDirectives {
                 ),
                 path("runs", () -> get(() -> completeJson(runService.listRuns()))),
                 path(PathMatchers.segment("runs").slash(PathMatchers.segment()), runId ->
-                    get(() -> {
-                        try {
-                            return completeJson(runService.getRunStatus(runId));
-                        } catch (RunNotFoundException ignored) {
-                            return completeError(StatusCodes.NOT_FOUND, "RUN_NOT_FOUND", "Run '" + runId + "' was not found");
-                        }
-                    })
+                    concat(
+                        get(() -> {
+                            try {
+                                return completeJson(runService.getRunStatus(runId));
+                            } catch (RunNotFoundException ignored) {
+                                return completeError(StatusCodes.NOT_FOUND, "RUN_NOT_FOUND", "Run '" + runId + "' was not found");
+                            }
+                        }),
+                        delete(() -> {
+                            try {
+                                return completeJson(runService.cancelRun(runId));
+                            } catch (RunNotFoundException ignored) {
+                                return completeError(StatusCodes.NOT_FOUND, "RUN_NOT_FOUND", "Run '" + runId + "' was not found");
+                            }
+                        })
+                    )
                 )
             )),
             pathPrefix("ui", () -> concat(

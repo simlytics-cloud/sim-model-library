@@ -8,42 +8,35 @@ paths:
 
   /v1/models:
     get:
-      summary: List available atomic models
+      summary: List available models
       operationId: listModels
       responses:
         '200':
-          description: Available atomic models
+          description: Available models
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - models
-                properties:
-                  models:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/AtomicModelSummary'
+                $ref: '#/components/schemas/ModelListResponse'
 
   /v1/models/{modelId}:
     get:
-      summary: Get atomic model definition
+      summary: Get model definition
       operationId: getModel
       parameters:
         - $ref: '#/components/parameters/ModelId'
       responses:
         '200':
-          description: Atomic model definition
+          description: Model definition
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AtomicModel'
+                $ref: '#/components/schemas/Model'
         '404':
           $ref: '#/components/responses/NotFound'
 
   /v1/models/{modelId}/run:
     put:
-      summary: Start an atomic model run
+      summary: Start a model run
       operationId: startModelRun
       parameters:
         - $ref: '#/components/parameters/ModelId'
@@ -100,6 +93,32 @@ paths:
                 $ref: '#/components/schemas/RunStatusResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Cancel run
+      operationId: deleteRun
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run status after cancel request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/run-config/defaults:
+    get:
+      summary: Get default run configuration values
+      operationId: getRunConfigDefaults
+      responses:
+        '200':
+          description: Default Kafka values for run configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KafkaDefaultsResponse'
 
 components:
 
@@ -119,7 +138,17 @@ components:
 
   schemas:
 
-    AtomicModelSummary:
+    ModelListResponse:
+      type: object
+      required:
+        - models
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelSummary'
+
+    ModelSummary:
       type: object
       required:
         - modelId
@@ -135,11 +164,13 @@ components:
           example: Battery Energy Model
         description:
           type: string
+        timeMode:
+          $ref: '#/components/schemas/TimeMode'
         implementationLanguage:
           type: string
           example: Java
 
-    AtomicModel:
+    Model:
       type: object
       required:
         - modelId
@@ -305,6 +336,11 @@ components:
       description: The data type used for simulation time.
       enum: [double, long]
 
+    TimeModeType:
+      type: string
+      description: Runtime pacing strategy for simulation time.
+      enum: [real-time, scaled-time, fast-time]
+
     TimeMode:
       type: object
       description: Configuration for simulation time and its relation to real-world time.
@@ -313,9 +349,8 @@ components:
         - timeType
       properties:
         mode:
-          type: string
-          enum: [real-time, fast-time]
-          description: Whether the simulation runs at real-world speed or as fast as possible.
+          $ref: '#/components/schemas/TimeModeType'
+          description: Whether the simulation runs at real-world speed, scaled real-world speed, or as fast as possible.
         timeType:
           $ref: '#/components/schemas/TimeType'
         secondsPerSimulationTimeUnit:
@@ -325,6 +360,11 @@ components:
             The duration in real-world seconds that corresponds to one unit of simulation time.
             Use 1.0 for 1 second, 3600.0 for 1 hour, or 0.001 for 1 millisecond.
           example: 0.001
+        realTimeFactor:
+          type: number
+          format: double
+          description: Scaling factor for `scaled-time` mode (for example, `2.0` runs at 2x real time).
+          example: 2.0
 
     StartModelRunResponse:
       type: object
@@ -392,6 +432,31 @@ components:
         currentSimulationTime:
           $ref: '#/components/schemas/CurrentSimulationTime'
 
+    KafkaDefaultsResponse:
+      type: object
+      required:
+        - bootstrapServers
+        - topic
+        - consumerGroup
+        - securityProtocol
+        - saslMechanism
+      properties:
+        bootstrapServers:
+          type: string
+          example: localhost:9092
+        topic:
+          type: string
+          example: simulation.${simulationId}.${coordinatorId}
+        consumerGroup:
+          type: string
+          example: ${modelInstanceId}
+        securityProtocol:
+          type: string
+          example: PLAINTEXT
+        saslMechanism:
+          type: string
+          example: ''
+
     CurrentSimulationTime:
       type: object
       required:
@@ -404,8 +469,7 @@ components:
           format: double
           example: 125.0
         timeType:
-          type: string
-          example: double
+          $ref: '#/components/schemas/TimeType'
         secondsPerSimulationTimeUnit:
           type: number
           format: double

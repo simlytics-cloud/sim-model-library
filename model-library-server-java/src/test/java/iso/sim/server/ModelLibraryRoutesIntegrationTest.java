@@ -5,12 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import iso.sim.server.catalog.CatalogRepository;
 import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.ErrorResponse;
-import iso.sim.server.dto.catalog.AtomicModelDto;
 import iso.sim.server.dto.catalog.ModelListResponse;
+import iso.sim.server.dto.catalog.ModelDto;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.StartModelRunResponse;
+import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.executor.StubRunExecutor;
 import iso.sim.server.runtime.RunResourceRegistry;
@@ -88,8 +89,10 @@ class ModelLibraryRoutesIntegrationTest {
                 .GET()
                 .build());
             assertEquals(200, getModelResponse.statusCode());
-            AtomicModelDto model = objectMapper.readValue(getModelResponse.body(), AtomicModelDto.class);
+            ModelDto model = objectMapper.readValue(getModelResponse.body(), ModelDto.class);
             assertEquals("Vehicle", model.getName());
+            assertEquals(TimeMode.SCALED_TIME, model.getTimeMode().getMode());
+            assertEquals(2.0, model.getTimeMode().getRealTimeFactor());
 
             String runRequestBody = loadResource("irpsystem.irpmodel.Vehicle.put-run-request.json");
             HttpResponse<String> startRunResponse = send(HttpRequest.newBuilder()
@@ -140,6 +143,22 @@ class ModelLibraryRoutesIntegrationTest {
             JsonNode runs = objectMapper.readTree(listRunsResponse.body());
             assertEquals(125.0, runs.get(0).path("currentSimulationTime").path("value").asDouble());
 
+            HttpResponse<String> cancelRunResponse = send(HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + runResponse.getStatusUrl()))
+                .DELETE()
+                .build());
+            assertEquals(200, cancelRunResponse.statusCode());
+            JsonNode canceledRun = objectMapper.readTree(cancelRunResponse.body());
+            assertEquals("canceled", canceledRun.path("status").asText());
+
+            HttpResponse<String> cancelRunAgainResponse = send(HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + runResponse.getStatusUrl()))
+                .DELETE()
+                .build());
+            assertEquals(200, cancelRunAgainResponse.statusCode());
+            JsonNode canceledRunAgain = objectMapper.readTree(cancelRunAgainResponse.body());
+            assertEquals("canceled", canceledRunAgain.path("status").asText());
+
             HttpResponse<String> kafkaDefaultsResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/run-config/defaults"))
                 .GET()
@@ -164,6 +183,14 @@ class ModelLibraryRoutesIntegrationTest {
             assertEquals(404, missingRunResponse.statusCode());
             ErrorResponse missingRunError = objectMapper.readValue(missingRunResponse.body(), ErrorResponse.class);
             assertEquals("RUN_NOT_FOUND", missingRunError.getCode());
+
+            HttpResponse<String> missingRunDeleteResponse = send(HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/runs/missing-run"))
+                .DELETE()
+                .build());
+            assertEquals(404, missingRunDeleteResponse.statusCode());
+            ErrorResponse missingRunDeleteError = objectMapper.readValue(missingRunDeleteResponse.body(), ErrorResponse.class);
+            assertEquals("RUN_NOT_FOUND", missingRunDeleteError.getCode());
 
             HttpResponse<String> invalidRunRequestResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/models/irpsystem.irpmodel.Vehicle/run"))
