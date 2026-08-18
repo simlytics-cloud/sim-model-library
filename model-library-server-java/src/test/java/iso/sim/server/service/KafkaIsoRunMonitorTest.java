@@ -3,12 +3,17 @@ package iso.sim.server.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
+import iso.sim.server.dto.run.RationalTimeDto;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
+import iso.sim.server.dto.run.TimeConversionPolicy;
+import iso.sim.server.dto.run.TimeDomain;
+import iso.sim.server.dto.run.TimeInfinityPolicy;
 import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.dto.run.TimeModeDto;
-import iso.sim.server.dto.run.TimeType;
+import iso.sim.server.dto.run.TimeSemanticsDto;
+import iso.sim.server.dto.run.TimeValueEncoding;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.runtime.RunHandle;
 import iso.sim.server.runtime.RunResourceRegistry;
@@ -53,7 +58,11 @@ class KafkaIsoRunMonitorTest {
             Runnable::run
         );
 
-        StartModelRunRequest request = request("run-1", new TimeModeDto(TimeMode.FAST_TIME, TimeType.DOUBLE, 1.0));
+        StartModelRunRequest request = request("run-1", new TimeModeDto(
+            TimeMode.VIRTUAL_TIME,
+            defaultTimeSemantics(),
+            null
+        ));
         RunExecutionContext context = new RunExecutionContext("run-1", "model-1", request);
 
         consumer.offer("""
@@ -78,9 +87,9 @@ class KafkaIsoRunMonitorTest {
         assertEquals("completed", status.getStatus());
         CurrentSimulationTimeDto currentSimulationTime = status.getCurrentSimulationTime();
         assertNotNull(currentSimulationTime);
-        assertEquals(131.0, currentSimulationTime.getValue());
-        assertEquals("double", currentSimulationTime.getTimeType());
-        assertEquals(1.0, currentSimulationTime.getSecondsPerSimulationTimeUnit());
+        assertEquals("131", currentSimulationTime.getValue());
+        assertNotNull(currentSimulationTime.getTimeSemantics());
+        assertEquals(TimeValueEncoding.FLOAT64, currentSimulationTime.getTimeSemantics().getValueEncoding());
         assertEquals("ModelTerminated", currentSimulationTime.getSourceMessageType());
         assertEquals("msg-4", currentSimulationTime.getSourceMessageId());
         assertNotNull(currentSimulationTime.getUpdatedAt());
@@ -261,6 +270,20 @@ class KafkaIsoRunMonitorTest {
             null,
             new KafkaConfigurationDto("kafka:9092", "topic", null, null, null, null),
             new SimulationContextDto("sim-1", "instance-1", "coord-1", timeModeDto)
+        );
+    }
+
+    private static TimeSemanticsDto defaultTimeSemantics() {
+        return new TimeSemanticsDto(
+            TimeDomain.CONTINUOUS,
+            TimeValueEncoding.FLOAT64,
+            new RationalTimeDto(1, 1),
+            null,
+            new RationalTimeDto(0, 1),
+            TimeConversionPolicy.EXACT,
+            null,
+            null,
+            TimeInfinityPolicy.MAX_FINITE
         );
     }
 

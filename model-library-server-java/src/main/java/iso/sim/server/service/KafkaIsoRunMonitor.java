@@ -8,6 +8,7 @@ import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.runtime.RunHandle;
 import iso.sim.server.store.RunStatusStore;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.Locale;
@@ -164,7 +165,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
     }
 
     private void updateCurrentSimulationTime(RunExecutionContext context, Iso21175Message message) {
-        Optional<Double> maybeValue = resolveCurrentSimulationTimeValue(message);
+        Optional<BigDecimal> maybeValue = resolveCurrentSimulationTimeValue(message);
         if (maybeValue.isEmpty()) {
             return;
         }
@@ -175,13 +176,16 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             return;
         }
 
-        Double value = maybeValue.get();
+        BigDecimal value = maybeValue.get();
         CurrentSimulationTimeDto existing = current.getCurrentSimulationTime();
-        if (existing != null && existing.getValue() != null && value < existing.getValue()) {
-            logger.fine(() -> "Ignoring simulation time rollback for runId=" + runId
-                + ", incomingValue=" + value
-                + ", existingValue=" + existing.getValue());
-            return;
+        if (existing != null && existing.getValue() != null) {
+            Optional<BigDecimal> existingValue = parseLogicalTime(existing.getValue());
+            if (existingValue.isPresent() && value.compareTo(existingValue.get()) < 0) {
+                logger.fine(() -> "Ignoring simulation time rollback for runId=" + runId
+                    + ", incomingValue=" + value.toPlainString()
+                    + ", existingValue=" + existing.getValue());
+                return;
+            }
         }
 
         TimeModeDto timeMode = context.getRequest().getSimulation() == null
@@ -189,9 +193,8 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             : context.getRequest().getSimulation().getTimeMode();
 
         CurrentSimulationTimeDto next = new CurrentSimulationTimeDto(
-            value,
-            timeMode == null || timeMode.getTimeType() == null ? null : timeMode.getTimeType().getValue(),
-            timeMode == null ? null : timeMode.getSecondsPerSimulationTimeUnit(),
+            formatLogicalTime(value),
+            timeMode == null ? null : timeMode.getTimeSemantics(),
             message.getMessageType(),
             message.getMessageId(),
             Instant.now().toString()
@@ -209,28 +212,32 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             next
         ));
         logger.fine(() -> "Updated currentSimulationTime for runId=" + runId
-            + ", value=" + value
+            + ", value=" + value.toPlainString()
             + ", sourceMessageType=" + message.getMessageType()
             + ", sourceMessageId=" + message.getMessageId());
     }
 
-    private Optional<Double> resolveCurrentSimulationTimeValue(Iso21175Message message) {
-        Optional<Double> nextInternalTime = parseDouble(message.getNextInternalTime());
+    private Optional<BigDecimal> resolveCurrentSimulationTimeValue(Iso21175Message message) {
+        Optional<BigDecimal> nextInternalTime = parseLogicalTime(message.getNextInternalTime());
         if (nextInternalTime.isPresent()) {
             return nextInternalTime;
         }
-        return parseDouble(message.getEventTime());
+        return parseLogicalTime(message.getEventTime());
     }
 
-    private Optional<Double> parseDouble(String value) {
+    private Optional<BigDecimal> parseLogicalTime(String value) {
         if (value == null || value.isBlank()) {
             return Optional.empty();
         }
         try {
-            return Optional.of(Double.parseDouble(value));
+            return Optional.of(new BigDecimal(value.trim()));
         } catch (NumberFormatException ex) {
             return Optional.empty();
         }
+    }
+
+    private String formatLogicalTime(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
     }
 
     private boolean isErrorOrFatal(Iso21175Message message) {

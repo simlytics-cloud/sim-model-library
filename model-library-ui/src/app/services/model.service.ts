@@ -27,13 +27,33 @@ export interface Parameter {
   defaultValue?: any;
 }
 
-export type TimeMode = 'real-time' | 'scaled-time' | 'fast-time';
-export type TimeType = 'double' | 'long';
+export type TimeMode = 'real-time' | 'scaled-real-time' | 'virtual-time';
+export type TimeDomain = 'discrete' | 'continuous';
+export type TimeValueEncoding = 'int64' | 'decimal-string' | 'float64';
+export type TimeConversionPolicy = 'exact' | 'approximate';
+export type TimeRoundingMode = 'floor' | 'ceiling' | 'half-up';
+export type TimeInfinityPolicy = 'max-finite' | 'string-sentinel';
+
+export interface RationalTime {
+  numerator: number;
+  denominator: number;
+}
+
+export interface TimeSemantics {
+  timeDomain: TimeDomain;
+  valueEncoding: TimeValueEncoding;
+  unitSeconds: RationalTime;
+  quantum?: RationalTime;
+  originOffset: RationalTime;
+  conversionPolicy: TimeConversionPolicy;
+  maxAbsErrorSeconds?: number;
+  roundingMode?: TimeRoundingMode;
+  infinityPolicy: TimeInfinityPolicy;
+}
 
 export interface TimeModeConfig {
   mode: TimeMode;
-  timeType: TimeType;
-  secondsPerSimulationTimeUnit?: number;
+  timeSemantics: TimeSemantics;
   realTimeFactor?: number;
 }
 
@@ -60,9 +80,8 @@ export interface RunStatus {
   completedAt?: string;
   message?: string;
   currentSimulationTime?: {
-    value?: number;
-    timeType?: string;
-    secondsPerSimulationTimeUnit?: number;
+    value?: string;
+    timeSemantics?: TimeSemantics;
     sourceMessageType?: string;
     sourceMessageId?: string;
     updatedAt?: string;

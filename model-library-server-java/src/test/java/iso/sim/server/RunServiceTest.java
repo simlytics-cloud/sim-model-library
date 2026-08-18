@@ -8,9 +8,14 @@ import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
 import iso.sim.server.dto.run.StartModelRunResponse;
 import iso.sim.server.dto.run.RunStatusResponse;
+import iso.sim.server.dto.run.RationalTimeDto;
+import iso.sim.server.dto.run.TimeConversionPolicy;
+import iso.sim.server.dto.run.TimeDomain;
+import iso.sim.server.dto.run.TimeInfinityPolicy;
 import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.dto.run.TimeModeDto;
-import iso.sim.server.dto.run.TimeType;
+import iso.sim.server.dto.run.TimeSemanticsDto;
+import iso.sim.server.dto.run.TimeValueEncoding;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.runtime.NoopRunHandle;
@@ -61,7 +66,21 @@ class RunServiceTest {
                 "sim-irp-001",
                 "instance-irp-001",
                 null,
-                new TimeModeDto(TimeMode.FAST_TIME, TimeType.LONG, 3600.0)
+                new TimeModeDto(
+                    TimeMode.VIRTUAL_TIME,
+                    new TimeSemanticsDto(
+                        TimeDomain.DISCRETE,
+                        TimeValueEncoding.INT64,
+                        new RationalTimeDto(3600, 1),
+                        new RationalTimeDto(1, 1),
+                        new RationalTimeDto(0, 1),
+                        TimeConversionPolicy.EXACT,
+                        null,
+                        null,
+                        TimeInfinityPolicy.MAX_FINITE
+                    ),
+                    null
+                )
             )
         );
 
@@ -69,9 +88,10 @@ class RunServiceTest {
         assertEquals("run-vehicle-002", response.getRunId());
         RunExecutionContext context = recordingExecutor.lastContext;
         assertNotNull(context);
-        assertEquals(TimeMode.FAST_TIME, context.getRequest().getSimulation().getTimeMode().getMode());
-        assertEquals(TimeType.LONG, context.getRequest().getSimulation().getTimeMode().getTimeType());
-        assertEquals(3600.0, context.getRequest().getSimulation().getTimeMode().getSecondsPerSimulationTimeUnit());
+        assertEquals(TimeMode.VIRTUAL_TIME, context.getRequest().getSimulation().getTimeMode().getMode());
+        assertEquals(TimeDomain.DISCRETE, context.getRequest().getSimulation().getTimeMode().getTimeSemantics().getTimeDomain());
+        assertEquals(3600L, context.getRequest().getSimulation().getTimeMode().getTimeSemantics().getUnitSeconds().getNumerator());
+        assertEquals(1L, context.getRequest().getSimulation().getTimeMode().getTimeSemantics().getUnitSeconds().getDenominator());
     }
 
     @Test

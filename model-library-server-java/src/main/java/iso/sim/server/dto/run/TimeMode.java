@@ -7,8 +7,8 @@ import java.util.Arrays;
 
 public enum TimeMode {
     REAL_TIME("real-time"),
-    SCALED_TIME("scaled-time"),
-    FAST_TIME("fast-time");
+    SCALED_REAL_TIME("scaled-real-time"),
+    VIRTUAL_TIME("virtual-time");
 
     private final String value;
 

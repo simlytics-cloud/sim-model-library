@@ -43,7 +43,9 @@ import { ModelService, RunStatus } from '../../services/model.service';
               <label>Current Simulation Time:</label>
               <span>
                 {{run.currentSimulationTime?.value}}
-                <span *ngIf="run.currentSimulationTime?.timeType"> ({{run.currentSimulationTime?.timeType}})</span>
+                <span *ngIf="run.currentSimulationTime?.timeSemantics?.valueEncoding">
+                  ({{run.currentSimulationTime?.timeSemantics?.valueEncoding}})
+                </span>
               </span>
             </div>
           </div>

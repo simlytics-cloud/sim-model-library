@@ -5,9 +5,21 @@
       "name": "Vehicle",
       "description": "Vehicle test model",
       "timeMode": {
-        "mode": "scaled-time",
-        "timeType": "double",
-        "secondsPerSimulationTimeUnit": 1.0,
+        "mode": "scaled-real-time",
+        "timeSemantics": {
+          "timeDomain": "continuous",
+          "valueEncoding": "float64",
+          "unitSeconds": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "originOffset": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "conversionPolicy": "exact",
+          "infinityPolicy": "max-finite"
+        },
         "realTimeFactor": 2.0
       },
       "implementationLanguage": "java",

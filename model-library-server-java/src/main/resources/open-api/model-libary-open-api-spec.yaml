@@ -331,40 +331,125 @@ components:
         timeMode:
           $ref: '#/components/schemas/TimeMode'
 
-    TimeType:
-      type: string
-      description: The data type used for simulation time.
-      enum: [double, long]
-
     TimeModeType:
       type: string
       description: Runtime pacing strategy for simulation time.
-      enum: [real-time, scaled-time, fast-time]
+      enum: [real-time, scaled-real-time, virtual-time]
+
+    TimeDomain:
+      type: string
+      description: Logical time domain for model semantics.
+      enum: [discrete, continuous]
+
+    TimeValueEncoding:
+      type: string
+      description: Wire encoding for logical time values.
+      enum: [int64, decimal-string, float64]
+
+    TimeConversionPolicy:
+      type: string
+      description: Coordinator conversion strictness for cross-model logical time mapping.
+      enum: [exact, approximate]
+
+    TimeRoundingMode:
+      type: string
+      description: Rounding strategy used when approximate conversion is allowed.
+      enum: [floor, ceiling, half-up]
+
+    TimeInfinityPolicy:
+      type: string
+      description: Logical infinity representation policy.
+      enum: [max-finite, string-sentinel]
+
+    RationalTime:
+      type: object
+      required:
+        - numerator
+        - denominator
+      properties:
+        numerator:
+          type: integer
+          format: int64
+          example: 1
+        denominator:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+
+    TimeSemantics:
+      type: object
+      description: DEVS-oriented logical time semantics for model coordination and validation.
+      required:
+        - timeDomain
+        - valueEncoding
+        - unitSeconds
+        - originOffset
+        - conversionPolicy
+        - infinityPolicy
+      properties:
+        timeDomain:
+          $ref: '#/components/schemas/TimeDomain'
+        valueEncoding:
+          $ref: '#/components/schemas/TimeValueEncoding'
+        unitSeconds:
+          $ref: '#/components/schemas/RationalTime'
+          description: Rational number of SI seconds represented by one local model time unit.
+        quantum:
+          $ref: '#/components/schemas/RationalTime'
+          description: Minimum local time increment. Required for discrete time semantics.
+        originOffset:
+          $ref: '#/components/schemas/RationalTime'
+          description: Rational offset from local model time zero to global coordinator logical time zero.
+        conversionPolicy:
+          $ref: '#/components/schemas/TimeConversionPolicy'
+        maxAbsErrorSeconds:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: Maximum absolute conversion error in seconds when conversionPolicy is approximate.
+        roundingMode:
+          $ref: '#/components/schemas/TimeRoundingMode'
+        infinityPolicy:
+          $ref: '#/components/schemas/TimeInfinityPolicy'
+      allOf:
+        - if:
+            properties:
+              timeDomain:
+                const: discrete
+          then:
+            required: [quantum]
+        - if:
+            properties:
+              conversionPolicy:
+                const: approximate
+          then:
+            required: [maxAbsErrorSeconds, roundingMode]
 
     TimeMode:
       type: object
       description: Configuration for simulation time and its relation to real-world time.
       required:
         - mode
-        - timeType
+        - timeSemantics
       properties:
         mode:
           $ref: '#/components/schemas/TimeModeType'
-          description: Whether the simulation runs at real-world speed, scaled real-world speed, or as fast as possible.
-        timeType:
-          $ref: '#/components/schemas/TimeType'
-        secondsPerSimulationTimeUnit:
-          type: number
-          format: double
-          description: >
-            The duration in real-world seconds that corresponds to one unit of simulation time.
-            Use 1.0 for 1 second, 3600.0 for 1 hour, or 0.001 for 1 millisecond.
-          example: 0.001
+          description: Runtime pacing mode independent from logical time semantics.
+        timeSemantics:
+          $ref: '#/components/schemas/TimeSemantics'
         realTimeFactor:
           type: number
           format: double
-          description: Scaling factor for `scaled-time` mode (for example, `2.0` runs at 2x real time).
+          description: Scaling factor for `scaled-real-time` mode (for example, `2.0` runs at 2x wall-clock speed).
           example: 2.0
+      allOf:
+        - if:
+            properties:
+              mode:
+                const: scaled-real-time
+          then:
+            required: [realTimeFactor]
 
     StartModelRunResponse:
       type: object
@@ -465,15 +550,11 @@ components:
         - updatedAt
       properties:
         value:
-          type: number
-          format: double
-          example: 125.0
-        timeType:
-          $ref: '#/components/schemas/TimeType'
-        secondsPerSimulationTimeUnit:
-          type: number
-          format: double
-          example: 1.0
+          type: string
+          description: Encoded logical time value as reported by the simulation runtime.
+          example: '125.0'
+        timeSemantics:
+          $ref: '#/components/schemas/TimeSemantics'
         sourceMessageType:
           type: string
           example: NextInternalTimeReport

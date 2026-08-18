@@ -8,30 +8,35 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TimeModeDto {
     private final TimeMode mode;
-    private final TimeType timeType;
-    private final Double secondsPerSimulationTimeUnit;
+    private final TimeSemanticsDto timeSemantics;
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final Double realTimeFactor;
 
     @JsonCreator
     public TimeModeDto(
         @JsonProperty("mode") TimeMode mode,
-        @JsonProperty("timeType") TimeType timeType,
-        @JsonProperty("secondsPerSimulationTimeUnit") Double secondsPerSimulationTimeUnit,
+        @JsonProperty("timeSemantics") TimeSemanticsDto timeSemantics,
         @JsonProperty("realTimeFactor") Double realTimeFactor
     ) {
+        if (mode == null) {
+            throw new IllegalArgumentException("mode is required");
+        }
+        if (timeSemantics == null) {
+            throw new IllegalArgumentException("timeSemantics is required");
+        }
+        if (mode == TimeMode.SCALED_REAL_TIME && realTimeFactor == null) {
+            throw new IllegalArgumentException("realTimeFactor is required when mode is scaled-real-time");
+        }
         this.mode = mode;
-        this.timeType = timeType;
-        this.secondsPerSimulationTimeUnit = secondsPerSimulationTimeUnit;
-        this.realTimeFactor = mode == TimeMode.SCALED_TIME ? realTimeFactor : null;
+        this.timeSemantics = timeSemantics;
+        this.realTimeFactor = mode == TimeMode.SCALED_REAL_TIME ? realTimeFactor : null;
     }
 
-    public TimeModeDto(TimeMode mode, TimeType timeType, Double secondsPerSimulationTimeUnit) {
-        this(mode, timeType, secondsPerSimulationTimeUnit, null);
+    public TimeModeDto(TimeMode mode, TimeSemanticsDto timeSemantics) {
+        this(mode, timeSemantics, null);
     }
 
     public TimeMode getMode() { return mode; }
-    public TimeType getTimeType() { return timeType; }
-    public Double getSecondsPerSimulationTimeUnit() { return secondsPerSimulationTimeUnit; }
+    public TimeSemanticsDto getTimeSemantics() { return timeSemantics; }
     public Double getRealTimeFactor() { return realTimeFactor; }
 }

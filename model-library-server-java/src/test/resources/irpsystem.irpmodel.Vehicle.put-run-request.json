@@ -29,9 +29,21 @@
     "modelInstanceId": "instance-irp-001",
     "coordinatorId": "irp-demo-coordinator",
     "timeMode": {
-      "mode": "fast-time",
-      "timeType": "double",
-      "secondsPerSimulationTimeUnit": 1.0
+      "mode": "virtual-time",
+      "timeSemantics": {
+        "timeDomain": "continuous",
+        "valueEncoding": "float64",
+        "unitSeconds": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "originOffset": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "conversionPolicy": "exact",
+        "infinityPolicy": "max-finite"
+      }
     }
   }
 }
