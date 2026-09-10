@@ -38,8 +38,7 @@ public class ModelLibraryRoutes extends AllDirectives {
             new RunService(service, new DefaultRunReadinessProbeSelector()),
             new KafkaDefaultsResponse(
                 "localhost:9092",
-                "simulation.${simulationId}.${coordinatorId}",
-                "${modelInstanceId}",
+                "devs-sim",
                 "PLAINTEXT",
                 ""
             ),
@@ -53,8 +52,7 @@ public class ModelLibraryRoutes extends AllDirectives {
             runService,
             new KafkaDefaultsResponse(
                 "localhost:9092",
-                "simulation.${simulationId}.${coordinatorId}",
-                "${modelInstanceId}",
+                "devs-sim",
                 "PLAINTEXT",
                 ""
             ),

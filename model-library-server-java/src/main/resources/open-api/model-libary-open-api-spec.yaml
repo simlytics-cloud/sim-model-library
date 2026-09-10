@@ -293,6 +293,11 @@ components:
 
     KafkaConfiguration:
       type: object
+      description: |
+        Kafka runtime settings for receiving simulation output from a shared topic.
+        The consumer group ID is not caller-configurable; at runtime it is always
+        derived as `runId:receiverId`, giving each receiver stable run-scoped offset
+        tracking. Callers must not set `group.id` in Kafka client configuration.
       required:
         - bootstrapServers
         - topic
@@ -302,9 +307,11 @@ components:
           example: kafka.example.com:9092
         topic:
           type: string
+          description: |
+            Shared Kafka topic reused across runs. Per-run isolation is achieved via
+            runId-based record keying and `X-Run-Id` header filtering, not by creating
+            dedicated per-run topics.
           example: simulation.run.001
-        consumerGroup:
-          type: string
         securityProtocol:
           type: string
           example: SASL_SSL
@@ -519,10 +526,13 @@ components:
 
     KafkaDefaultsResponse:
       type: object
+      description: |
+        Default Kafka connection values for run startup.
+        Consumer group ID is not included because it is derived at runtime as
+        `runId:receiverId` and is not caller-configurable.
       required:
         - bootstrapServers
         - topic
-        - consumerGroup
         - securityProtocol
         - saslMechanism
       properties:
@@ -531,10 +541,7 @@ components:
           example: localhost:9092
         topic:
           type: string
-          example: simulation.${simulationId}.${coordinatorId}
-        consumerGroup:
-          type: string
-          example: ${modelInstanceId}
+          example: devs-sim
         securityProtocol:
           type: string
           example: PLAINTEXT

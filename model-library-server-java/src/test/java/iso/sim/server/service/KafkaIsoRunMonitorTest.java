@@ -236,6 +236,7 @@ class KafkaIsoRunMonitorTest {
         lifecycleService.markAccepted("run-topic", "model-1", "accepted");
 
         AtomicReference<String> capturedTopic = new AtomicReference<>();
+        AtomicReference<String> capturedConsumerGroup = new AtomicReference<>();
         QueueConsumerAdapter consumer = new QueueConsumerAdapter();
         KafkaIsoRunMonitor monitor = new KafkaIsoRunMonitor(
             lifecycleService,
@@ -244,6 +245,7 @@ class KafkaIsoRunMonitorTest {
             new Iso21175MessageParser(new ObjectMapper()),
             (context, topic, group) -> {
                 capturedTopic.set(topic);
+                capturedConsumerGroup.set(group);
                 return consumer;
             },
             runnable -> {
@@ -253,8 +255,8 @@ class KafkaIsoRunMonitorTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-topic",
             null,
-            new KafkaConfigurationDto("kafka:9092", "mission-system", null, null, null, null),
-            null
+            new KafkaConfigurationDto("kafka:9092", "mission-system", null, null, null),
+            new SimulationContextDto("sim-1", "receiver-1", "coord-1", null)
         );
 
         monitor.startMonitoring(
@@ -262,13 +264,14 @@ class KafkaIsoRunMonitorTest {
             new NoopRunHandle("run-topic")
         );
         assertEquals("mission-system", capturedTopic.get());
+        assertEquals("run-topic:receiver-1", capturedConsumerGroup.get());
     }
 
     private static StartModelRunRequest request(String runId, TimeModeDto timeModeDto) {
         return new StartModelRunRequest(
             runId,
             null,
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null, null),
+            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
             new SimulationContextDto("sim-1", "instance-1", "coord-1", timeModeDto)
         );
     }

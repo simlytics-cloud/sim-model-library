@@ -61,7 +61,7 @@ class RunServiceTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-vehicle-002",
             objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
             new SimulationContextDto(
                 "sim-irp-001",
                 "instance-irp-001",
@@ -99,7 +99,7 @@ class RunServiceTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-vehicle-001",
             objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
             null
         );
 
@@ -127,7 +127,7 @@ class RunServiceTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-fail-001",
             objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
             null
         );
 
@@ -164,7 +164,7 @@ class RunServiceTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-cancel-001",
             objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
             null
         );
 
@@ -187,7 +187,7 @@ class RunServiceTest {
         StartModelRunRequest request = new StartModelRunRequest(
             "run-failed-001",
             objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null, null),
+            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
             null
         );
         failingRunService.startRun("irpsystem.irpmodel.Vehicle", request);

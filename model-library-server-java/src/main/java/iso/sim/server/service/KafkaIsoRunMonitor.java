@@ -49,10 +49,10 @@ public class KafkaIsoRunMonitor implements RunMonitor {
     public RunHandle startMonitoring(RunExecutionContext context, RunHandle runtimeHandle) {
         String runId = context.getRunId();
         String topic = context.getRequest().getKafka().getTopic();
-        String configuredGroup = context.getRequest().getKafka().getConsumerGroup();
-        String consumerGroup = configuredGroup != null && !configuredGroup.isBlank()
-            ? configuredGroup
-            : "model-library-run-monitor-" + runId;
+        String receiverId = context.getRequest().getSimulation() != null
+            ? context.getRequest().getSimulation().getModelInstanceId()
+            : null;
+        String consumerGroup = runId + ":" + receiverId;
 
         logger.info(() -> "Starting Kafka run monitor for runId=" + runId
             + ", topic=" + topic

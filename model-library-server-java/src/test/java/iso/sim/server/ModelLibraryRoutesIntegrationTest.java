@@ -70,8 +70,7 @@ class ModelLibraryRoutesIntegrationTest {
             runService,
             new KafkaDefaultsResponse(
                 "localhost:9092",
-                "simulation.${simulationId}.${coordinatorId}",
-                "${modelInstanceId}",
+                "devs-sim",
                 "PLAINTEXT",
                 ""
             ),
@@ -188,7 +187,8 @@ class ModelLibraryRoutesIntegrationTest {
             assertEquals(200, kafkaDefaultsResponse.statusCode());
             JsonNode kafkaDefaults = objectMapper.readTree(kafkaDefaultsResponse.body());
             assertEquals("localhost:9092", kafkaDefaults.path("bootstrapServers").asText());
-            assertEquals("simulation.${simulationId}.${coordinatorId}", kafkaDefaults.path("topic").asText());
+            assertEquals("devs-sim", kafkaDefaults.path("topic").asText());
+            assertTrue(kafkaDefaults.path("consumerGroup").isMissingNode());
 
             HttpResponse<String> missingModelResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/models/missing.model"))

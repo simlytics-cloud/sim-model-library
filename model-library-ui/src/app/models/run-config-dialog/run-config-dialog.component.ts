@@ -132,10 +132,6 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
             <input matInput formControlName="topic">
           </mat-form-field>
           <mat-form-field appearance="fill">
-            <mat-label>Consumer Group</mat-label>
-            <input matInput formControlName="consumerGroup">
-          </mat-form-field>
-          <mat-form-field appearance="fill">
             <mat-label>Security Protocol</mat-label>
             <input matInput formControlName="securityProtocol">
           </mat-form-field>
@@ -227,8 +223,7 @@ export class RunConfigDialogComponent {
       }),
       kafka: this.fb.group({
         bootstrapServers: ['localhost:9092'],
-        topic: [`simulation.${simulationId}.${coordinatorId}`],
-        consumerGroup: [`${modelInstanceId}`],
+        topic: ['devs-sim'],
         securityProtocol: ['PLAINTEXT'],
         saslMechanism: ['']
       })
@@ -260,7 +255,6 @@ export class RunConfigDialogComponent {
       kafka: {
         bootstrapServers: this.renderTemplate(defaults.bootstrapServers, simulationId, coordinatorId, modelInstanceId),
         topic: this.renderTemplate(defaults.topic, simulationId, coordinatorId, modelInstanceId),
-        consumerGroup: this.renderTemplate(defaults.consumerGroup, simulationId, coordinatorId, modelInstanceId),
         securityProtocol: this.renderTemplate(defaults.securityProtocol, simulationId, coordinatorId, modelInstanceId),
         saslMechanism: this.renderTemplate(defaults.saslMechanism, simulationId, coordinatorId, modelInstanceId)
       }

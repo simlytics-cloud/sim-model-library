@@ -38,7 +38,7 @@ class RunReadinessProbeTest {
         StartModelRunRequest request = new StartModelRunRequest(
             runId,
             null,
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null, null),
+            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
             null
         );
         return new RunExecutionContext(runId, "model-1", request);

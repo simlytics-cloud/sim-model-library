@@ -21,25 +21,7 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
     @Override
     public KafkaConsumerAdapter create(RunExecutionContext context, String topic, String consumerGroup) {
         KafkaConfigurationDto kafkaConfig = context.getRequest().getKafka();
-        Properties properties = new Properties();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
-        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-
-        if (kafkaConfig.getSecurityProtocol() != null && !kafkaConfig.getSecurityProtocol().isBlank()) {
-            properties.put("security.protocol", kafkaConfig.getSecurityProtocol());
-        }
-        if (kafkaConfig.getSaslMechanism() != null && !kafkaConfig.getSaslMechanism().isBlank()) {
-            properties.put("sasl.mechanism", kafkaConfig.getSaslMechanism());
-        }
-        if (kafkaConfig.getProperties() != null) {
-            for (Map.Entry<String, String> entry : kafkaConfig.getProperties().entrySet()) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-        }
+        Properties properties = buildConsumerProperties(kafkaConfig, consumerGroup);
 
         String runId = context.getRunId();
         logger.info(() -> "Creating Kafka consumer for runId=" + runId
@@ -67,5 +49,32 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
                 consumer.close();
             }
         };
+    }
+
+    Properties buildConsumerProperties(KafkaConfigurationDto kafkaConfig, String consumerGroup) {
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+
+        if (kafkaConfig.getSecurityProtocol() != null && !kafkaConfig.getSecurityProtocol().isBlank()) {
+            properties.put("security.protocol", kafkaConfig.getSecurityProtocol());
+        }
+        if (kafkaConfig.getSaslMechanism() != null && !kafkaConfig.getSaslMechanism().isBlank()) {
+            properties.put("sasl.mechanism", kafkaConfig.getSaslMechanism());
+        }
+        if (kafkaConfig.getProperties() != null) {
+            for (Map.Entry<String, String> entry : kafkaConfig.getProperties().entrySet()) {
+                if (ConsumerConfig.GROUP_ID_CONFIG.equals(entry.getKey())) {
+                    logger.warning(() -> "Ignoring Kafka property override for group.id; using derived consumerGroup=" + consumerGroup);
+                    continue;
+                }
+                properties.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return properties;
     }
 }

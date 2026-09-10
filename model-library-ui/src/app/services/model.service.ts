@@ -91,7 +91,6 @@ export interface RunStatus {
 export interface KafkaDefaults {
   bootstrapServers: string;
   topic: string;
-  consumerGroup: string;
   securityProtocol: string;
   saslMechanism: string;
 }
