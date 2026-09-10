@@ -71,43 +71,6 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
                 <mat-option value="virtual-time">virtual-time</mat-option>
               </mat-select>
             </mat-form-field>
-            <div formGroupName="timeSemantics">
-              <mat-form-field appearance="fill">
-                <mat-label>Time Domain</mat-label>
-                <mat-select formControlName="timeDomain">
-                  <mat-option value="discrete">discrete</mat-option>
-                  <mat-option value="continuous">continuous</mat-option>
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="fill">
-                <mat-label>Value Encoding</mat-label>
-                <mat-select formControlName="valueEncoding">
-                  <mat-option value="float64">float64</mat-option>
-                  <mat-option value="int64">int64</mat-option>
-                  <mat-option value="decimal-string">decimal-string</mat-option>
-                </mat-select>
-              </mat-form-field>
-              <div formGroupName="unitSeconds">
-                <mat-form-field appearance="fill">
-                  <mat-label>Unit Seconds Numerator</mat-label>
-                  <input matInput type="number" formControlName="numerator">
-                </mat-form-field>
-                <mat-form-field appearance="fill">
-                  <mat-label>Unit Seconds Denominator</mat-label>
-                  <input matInput type="number" formControlName="denominator">
-                </mat-form-field>
-              </div>
-              <div formGroupName="quantum" *ngIf="isDiscreteTimeDomain()">
-                <mat-form-field appearance="fill">
-                  <mat-label>Quantum Numerator</mat-label>
-                  <input matInput type="number" formControlName="numerator">
-                </mat-form-field>
-                <mat-form-field appearance="fill">
-                  <mat-label>Quantum Denominator</mat-label>
-                  <input matInput type="number" formControlName="denominator">
-                </mat-form-field>
-              </div>
-            </div>
             <mat-form-field appearance="fill" *ngIf="isScaledTimeMode()">
               <mat-label>Real Time Factor</mat-label>
               <input matInput type="number" formControlName="realTimeFactor">
@@ -200,24 +163,6 @@ export class RunConfigDialogComponent {
         coordinatorId: [coordinatorId],
         timeMode: this.fb.group({
           mode: [defaultTimeMode.mode, Validators.required],
-          timeSemantics: this.fb.group({
-            timeDomain: [defaultTimeMode.timeSemantics.timeDomain, Validators.required],
-            valueEncoding: [defaultTimeMode.timeSemantics.valueEncoding, Validators.required],
-            unitSeconds: this.fb.group({
-              numerator: [defaultTimeMode.timeSemantics.unitSeconds.numerator, Validators.required],
-              denominator: [defaultTimeMode.timeSemantics.unitSeconds.denominator, [Validators.required, Validators.min(1)]]
-            }),
-            quantum: this.fb.group({
-              numerator: [defaultTimeMode.timeSemantics.quantum?.numerator ?? 1],
-              denominator: [defaultTimeMode.timeSemantics.quantum?.denominator ?? 1]
-            }),
-            originOffset: this.fb.group({
-              numerator: [defaultTimeMode.timeSemantics.originOffset.numerator, Validators.required],
-              denominator: [defaultTimeMode.timeSemantics.originOffset.denominator, [Validators.required, Validators.min(1)]]
-            }),
-            conversionPolicy: [defaultTimeMode.timeSemantics.conversionPolicy, Validators.required],
-            infinityPolicy: [defaultTimeMode.timeSemantics.infinityPolicy, Validators.required]
-          }),
           realTimeFactor: [defaultTimeMode.realTimeFactor]
         })
       }),
@@ -239,11 +184,7 @@ export class RunConfigDialogComponent {
     this.runForm.get('simulation.timeMode.mode')?.valueChanges.subscribe(() => {
       this.updateRealTimeFactorValidation();
     });
-    this.runForm.get('simulation.timeMode.timeSemantics.timeDomain')?.valueChanges.subscribe(() => {
-      this.updateQuantumValidation();
-    });
     this.updateRealTimeFactorValidation();
-    this.updateQuantumValidation();
   }
 
   private applyKafkaDefaults(defaults: KafkaDefaults): void {
@@ -276,41 +217,20 @@ export class RunConfigDialogComponent {
   }
 
   private resolveDefaultTimeMode(modelTimeMode?: TimeModeConfig): TimeModeConfig {
-    const defaultTimeSemantics = {
-      timeDomain: 'continuous' as const,
-      valueEncoding: 'float64' as const,
-      unitSeconds: {
-        numerator: 1,
-        denominator: 1
-      },
-      originOffset: {
-        numerator: 0,
-        denominator: 1
-      },
-      conversionPolicy: 'exact' as const,
-      infinityPolicy: 'max-finite' as const
-    };
-
     if (!modelTimeMode) {
       return {
-        mode: 'virtual-time',
-        timeSemantics: defaultTimeSemantics
+        mode: 'virtual-time'
       };
     }
 
     return {
       mode: modelTimeMode.mode ?? 'virtual-time',
-      timeSemantics: modelTimeMode.timeSemantics ?? defaultTimeSemantics,
       realTimeFactor: modelTimeMode.mode === 'scaled-real-time' ? modelTimeMode.realTimeFactor : undefined
     };
   }
 
   isScaledTimeMode(): boolean {
     return this.runForm.get('simulation.timeMode.mode')?.value === 'scaled-real-time';
-  }
-
-  isDiscreteTimeDomain(): boolean {
-    return this.runForm.get('simulation.timeMode.timeSemantics.timeDomain')?.value === 'discrete';
   }
 
   private updateRealTimeFactorValidation(): void {
@@ -326,25 +246,6 @@ export class RunConfigDialogComponent {
     }
 
     realTimeFactorControl.updateValueAndValidity();
-  }
-
-  private updateQuantumValidation(): void {
-    const quantumNumeratorControl = this.runForm.get('simulation.timeMode.timeSemantics.quantum.numerator');
-    const quantumDenominatorControl = this.runForm.get('simulation.timeMode.timeSemantics.quantum.denominator');
-    if (!quantumNumeratorControl || !quantumDenominatorControl) {
-      return;
-    }
-
-    if (this.isDiscreteTimeDomain()) {
-      quantumNumeratorControl.setValidators([Validators.required]);
-      quantumDenominatorControl.setValidators([Validators.required, Validators.min(1)]);
-    } else {
-      quantumNumeratorControl.clearValidators();
-      quantumDenominatorControl.clearValidators();
-    }
-
-    quantumNumeratorControl.updateValueAndValidity();
-    quantumDenominatorControl.updateValueAndValidity();
   }
 
   private buildInitializationSchema(initializationSchema: any, messageSchemas?: { [key: string]: any }): any {
@@ -414,9 +315,6 @@ export class RunConfigDialogComponent {
       const rawValue = this.runForm.value;
       if (rawValue?.simulation?.timeMode?.mode !== 'scaled-real-time') {
         delete rawValue.simulation.timeMode.realTimeFactor;
-      }
-      if (rawValue?.simulation?.timeMode?.timeSemantics?.timeDomain !== 'discrete') {
-        delete rawValue.simulation.timeMode.timeSemantics.quantum;
       }
       this.dialogRef.close(rawValue);
     }

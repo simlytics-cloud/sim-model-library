@@ -12,8 +12,8 @@ public class Iso21175Message {
     private final String messageType;
     private final String senderId;
     private final String receiverId;
-    private final String eventTime;
-    private final String nextInternalTime;
+    private final JsonNode eventTime;
+    private final JsonNode nextInternalTime;
     private final JsonNode payload;
     private final String wallClockTime;
 
@@ -24,8 +24,8 @@ public class Iso21175Message {
         @JsonProperty("messageType") String messageType,
         @JsonProperty("senderId") String senderId,
         @JsonProperty("receiverId") String receiverId,
-        @JsonProperty("eventTime") String eventTime,
-        @JsonProperty("nextInternalTime") String nextInternalTime,
+        @JsonProperty("eventTime") JsonNode eventTime,
+        @JsonProperty("nextInternalTime") JsonNode nextInternalTime,
         @JsonProperty("payload") JsonNode payload,
         @JsonProperty("wallClockTime") String wallClockTime
     ) {
@@ -45,8 +45,8 @@ public class Iso21175Message {
     public String getMessageType() { return messageType; }
     public String getSenderId() { return senderId; }
     public String getReceiverId() { return receiverId; }
-    public String getEventTime() { return eventTime; }
-    public String getNextInternalTime() { return nextInternalTime; }
+    public JsonNode getEventTime() { return eventTime; }
+    public JsonNode getNextInternalTime() { return nextInternalTime; }
     public JsonNode getPayload() { return payload; }
     public String getWallClockTime() { return wallClockTime; }
 }

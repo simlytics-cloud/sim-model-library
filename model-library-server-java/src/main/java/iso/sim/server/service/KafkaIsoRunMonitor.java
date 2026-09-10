@@ -3,10 +3,10 @@ package iso.sim.server.service;
 import iso.sim.server.dto.run.Iso21175Message;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.RunStatusResponse;
-import iso.sim.server.dto.run.TimeModeDto;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.runtime.RunHandle;
 import iso.sim.server.store.RunStatusStore;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -94,7 +94,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
                 }
                 for (String rawValue : messages) {
                     if (!active.get()) {
-                        // break;
+                        break;
                     }
                     Optional<Iso21175Message> maybeMessage = parser.parse(rawValue);
                     if (maybeMessage.isEmpty()) {
@@ -106,7 +106,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
                         logger.fine(() -> "Ignoring Kafka message with simulationRunId=" + message.getSimulationRunId()
                             + " while monitoring runId=" + runId
                             + ", messageType=" + message.getMessageType());
-                        //continue;
+                        continue;
                     }
                     logger.fine(() -> "Processing Kafka message for runId=" + runId
                         + ", messageType=" + message.getMessageType()
@@ -179,8 +179,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         BigDecimal value = maybeValue.get();
         CurrentSimulationTimeDto existing = current.getCurrentSimulationTime();
         if (existing != null && existing.getValue() != null) {
-            Optional<BigDecimal> existingValue = parseLogicalTime(existing.getValue());
-            if (existingValue.isPresent() && value.compareTo(existingValue.get()) < 0) {
+            if (value.compareTo(existing.getValue()) < 0) {
                 logger.fine(() -> "Ignoring simulation time rollback for runId=" + runId
                     + ", incomingValue=" + value.toPlainString()
                     + ", existingValue=" + existing.getValue());
@@ -188,13 +187,8 @@ public class KafkaIsoRunMonitor implements RunMonitor {
             }
         }
 
-        TimeModeDto timeMode = context.getRequest().getSimulation() == null
-            ? null
-            : context.getRequest().getSimulation().getTimeMode();
-
         CurrentSimulationTimeDto next = new CurrentSimulationTimeDto(
-            formatLogicalTime(value),
-            timeMode == null ? null : timeMode.getTimeSemantics(),
+            value,
             message.getMessageType(),
             message.getMessageId(),
             Instant.now().toString()
@@ -225,19 +219,11 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         return parseLogicalTime(message.getEventTime());
     }
 
-    private Optional<BigDecimal> parseLogicalTime(String value) {
-        if (value == null || value.isBlank()) {
+    private Optional<BigDecimal> parseLogicalTime(JsonNode value) {
+        if (value == null || !value.isNumber()) {
             return Optional.empty();
         }
-        try {
-            return Optional.of(new BigDecimal(value.trim()));
-        } catch (NumberFormatException ex) {
-            return Optional.empty();
-        }
-    }
-
-    private String formatLogicalTime(BigDecimal value) {
-        return value.stripTrailingZeros().toPlainString();
+        return Optional.of(value.decimalValue());
     }
 
     private boolean isErrorOrFatal(Iso21175Message message) {

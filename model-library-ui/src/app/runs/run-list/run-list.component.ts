@@ -42,9 +42,6 @@ import { ModelService, RunStatus } from '../../services/model.service';
         <th mat-header-cell *matHeaderCellDef> Current Simulation Time </th>
         <td mat-cell *matCellDef="let run">
           {{run.currentSimulationTime?.value ?? '-'}}
-          <span *ngIf="run.currentSimulationTime?.timeSemantics?.valueEncoding">
-            ({{run.currentSimulationTime?.timeSemantics?.valueEncoding}})
-          </span>
         </td>
       </ng-container>
 

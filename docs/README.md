@@ -53,7 +53,7 @@ Required endpoints:
 ### 1.4 ISO-21175 alignment goals (high level)
 
 - Use OpenAPI-first contracts as a deterministic interoperability boundary.
-- Preserve explicit simulation-context semantics (`simulationId`, `federationId`, `timeMode`) for federation integration.
+- Preserve simulation-context identifiers (`simulationId`, `federationId`) and optional pacing (`timeMode`) for federation integration. Logical time uses the common unit-one JSON-number representation; participants agree on Integer or Real before a run.
 - Keep transport payloads implementation-neutral so model hosting/execution can interoperate across organizations.
 - Add conformance-focused validation and regression tests as a release gate.
 

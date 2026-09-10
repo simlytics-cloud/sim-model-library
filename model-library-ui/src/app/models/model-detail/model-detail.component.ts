@@ -48,9 +48,6 @@ import { RunConfigDialogComponent } from '../run-config-dialog/run-config-dialog
             <p *ngIf="model.behaviorDescription"><strong>Behavior:</strong> {{ model.behaviorDescription }}</p>
             <div *ngIf="model.timeMode">
               <p><strong>Time Mode:</strong> {{ model.timeMode.mode }}</p>
-              <p><strong>Time Domain:</strong> {{ model.timeMode.timeSemantics.timeDomain }}</p>
-              <p><strong>Value Encoding:</strong> {{ model.timeMode.timeSemantics.valueEncoding }}</p>
-              <p><strong>Unit Seconds:</strong> {{ model.timeMode.timeSemantics.unitSeconds.numerator }}/{{ model.timeMode.timeSemantics.unitSeconds.denominator }}</p>
               <p *ngIf="model.timeMode.mode === 'scaled-real-time' && model.timeMode.realTimeFactor != null">
                 <strong>Real Time Factor:</strong> {{ model.timeMode.realTimeFactor }}
               </p>

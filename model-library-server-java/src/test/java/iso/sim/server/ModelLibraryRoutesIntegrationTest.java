@@ -9,15 +9,9 @@ import iso.sim.server.dto.catalog.ModelListResponse;
 import iso.sim.server.dto.catalog.ModelDto;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
-import iso.sim.server.dto.run.RationalTimeDto;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.StartModelRunResponse;
-import iso.sim.server.dto.run.TimeConversionPolicy;
-import iso.sim.server.dto.run.TimeDomain;
-import iso.sim.server.dto.run.TimeInfinityPolicy;
 import iso.sim.server.dto.run.TimeMode;
-import iso.sim.server.dto.run.TimeSemanticsDto;
-import iso.sim.server.dto.run.TimeValueEncoding;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.executor.StubRunExecutor;
 import iso.sim.server.runtime.RunResourceRegistry;
@@ -36,6 +30,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -129,18 +124,7 @@ class ModelLibraryRoutesIntegrationTest {
                 parsedStatus.getCompletedAt(),
                 parsedStatus.getMessage(),
                 new CurrentSimulationTimeDto(
-                    "125.0",
-                    new TimeSemanticsDto(
-                        TimeDomain.CONTINUOUS,
-                        TimeValueEncoding.FLOAT64,
-                        new RationalTimeDto(1, 1),
-                        null,
-                        new RationalTimeDto(0, 1),
-                        TimeConversionPolicy.EXACT,
-                        null,
-                        null,
-                        TimeInfinityPolicy.MAX_FINITE
-                    ),
+                    new BigDecimal("125.0"),
                     "NextInternalTimeReport",
                     "message-123",
                     "2026-07-01T12:34:56Z"
@@ -153,8 +137,8 @@ class ModelLibraryRoutesIntegrationTest {
                 .build());
             assertEquals(200, statusWithTimeResponse.statusCode());
             JsonNode statusWithTime = objectMapper.readTree(statusWithTimeResponse.body());
-            assertEquals("125.0", statusWithTime.path("currentSimulationTime").path("value").asText());
-            assertEquals("float64", statusWithTime.path("currentSimulationTime").path("timeSemantics").path("valueEncoding").asText());
+            assertTrue(statusWithTime.path("currentSimulationTime").path("value").isNumber());
+            assertEquals(new BigDecimal("125.0"), statusWithTime.path("currentSimulationTime").path("value").decimalValue());
 
             HttpResponse<String> listRunsResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/runs"))
@@ -162,7 +146,7 @@ class ModelLibraryRoutesIntegrationTest {
                 .build());
             assertEquals(200, listRunsResponse.statusCode());
             JsonNode runs = objectMapper.readTree(listRunsResponse.body());
-            assertEquals("125.0", runs.get(0).path("currentSimulationTime").path("value").asText());
+            assertTrue(runs.get(0).path("currentSimulationTime").path("value").isNumber());
 
             HttpResponse<String> cancelRunResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + runResponse.getStatusUrl()))

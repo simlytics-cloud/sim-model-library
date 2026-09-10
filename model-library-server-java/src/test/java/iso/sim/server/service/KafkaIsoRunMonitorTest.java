@@ -3,24 +3,18 @@ package iso.sim.server.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
-import iso.sim.server.dto.run.RationalTimeDto;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
-import iso.sim.server.dto.run.TimeConversionPolicy;
-import iso.sim.server.dto.run.TimeDomain;
-import iso.sim.server.dto.run.TimeInfinityPolicy;
 import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.dto.run.TimeModeDto;
-import iso.sim.server.dto.run.TimeSemanticsDto;
-import iso.sim.server.dto.run.TimeValueEncoding;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.runtime.RunHandle;
 import iso.sim.server.runtime.RunResourceRegistry;
 import iso.sim.server.store.InMemoryRunStatusStore;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaIsoRunMonitorTest {
 
     @Test
-    @Disabled("Temporarily Disabled to debug on remote server")
     void monitorUpdatesCurrentSimulationTimeAndPreventsRollback() throws Exception {
         InMemoryRunStatusStore store = new InMemoryRunStatusStore();
         RunLifecycleService lifecycleService = new RunLifecycleService(store);
@@ -58,27 +51,23 @@ class KafkaIsoRunMonitorTest {
             Runnable::run
         );
 
-        StartModelRunRequest request = request("run-1", new TimeModeDto(
-            TimeMode.VIRTUAL_TIME,
-            defaultTimeSemantics(),
-            null
-        ));
+        StartModelRunRequest request = request("run-1", new TimeModeDto(TimeMode.VIRTUAL_TIME));
         RunExecutionContext context = new RunExecutionContext("run-1", "model-1", request);
 
         consumer.offer("""
-            {"simulationRunId":"run-1","messageId":"msg-1","messageType":"NextInternalTimeReport","eventTime":"120.0","nextInternalTime":"125.0"}
+            {"simulationRunId":"run-1","messageId":"msg-1","messageType":"NextInternalTimeReport","eventTime":120.0,"nextInternalTime":125.0}
             """);
         consumer.offer("""
-            {"simulationRunId":"other-run","messageId":"msg-x","messageType":"NextInternalTimeReport","nextInternalTime":"999.0"}
+            {"simulationRunId":"other-run","messageId":"msg-x","messageType":"NextInternalTimeReport","nextInternalTime":999.0}
             """);
         consumer.offer("""
-            {"simulationRunId":"run-1","messageId":"msg-2","messageType":"ModelRunning","eventTime":"124.0"}
+            {"simulationRunId":"run-1","messageId":"msg-2","messageType":"ModelRunning","eventTime":124.0}
             """);
         consumer.offer("""
-            {"simulationRunId":"run-1","messageId":"msg-3","messageType":"ModelRunning","eventTime":"130.0"}
+            {"simulationRunId":"run-1","messageId":"msg-3","messageType":"ModelRunning","eventTime":130.0}
             """);
         consumer.offer("""
-            {"simulationRunId":"run-1","messageId":"msg-4","messageType":"ModelTerminated","eventTime":"131.0"}
+            {"simulationRunId":"run-1","messageId":"msg-4","messageType":"ModelTerminated","eventTime":131.0}
             """);
 
         monitor.startMonitoring(context, runtimeHandle);
@@ -87,9 +76,7 @@ class KafkaIsoRunMonitorTest {
         assertEquals("completed", status.getStatus());
         CurrentSimulationTimeDto currentSimulationTime = status.getCurrentSimulationTime();
         assertNotNull(currentSimulationTime);
-        assertEquals("131", currentSimulationTime.getValue());
-        assertNotNull(currentSimulationTime.getTimeSemantics());
-        assertEquals(TimeValueEncoding.FLOAT64, currentSimulationTime.getTimeSemantics().getValueEncoding());
+        assertEquals(new BigDecimal("131.0"), currentSimulationTime.getValue());
         assertEquals("ModelTerminated", currentSimulationTime.getSourceMessageType());
         assertEquals("msg-4", currentSimulationTime.getSourceMessageId());
         assertNotNull(currentSimulationTime.getUpdatedAt());
@@ -136,6 +123,38 @@ class KafkaIsoRunMonitorTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void monitorIgnoresStringEncodedLogicalTime() {
+        InMemoryRunStatusStore store = new InMemoryRunStatusStore();
+        RunLifecycleService lifecycleService = new RunLifecycleService(store);
+        RunTerminalCoordinator terminalCoordinator = new RunTerminalCoordinator(lifecycleService, store, new RunResourceRegistry());
+        lifecycleService.markAccepted("run-numeric", "model-1", "accepted");
+
+        QueueConsumerAdapter consumer = new QueueConsumerAdapter();
+        consumer.offer("""
+            {"simulationRunId":"run-numeric","messageId":"msg-1","messageType":"ModelRunning","eventTime":"125.0"}
+            """);
+        consumer.offer("""
+            {"simulationRunId":"run-numeric","messageId":"msg-2","messageType":"ModelTerminated"}
+            """);
+
+        KafkaIsoRunMonitor monitor = new KafkaIsoRunMonitor(
+            lifecycleService,
+            store,
+            terminalCoordinator,
+            new Iso21175MessageParser(new ObjectMapper()),
+            (context, topic, group) -> consumer,
+            Runnable::run
+        );
+
+        monitor.startMonitoring(
+            new RunExecutionContext("run-numeric", "model-1", request("run-numeric", null)),
+            new NoopRunHandle("run-numeric")
+        );
+
+        assertNull(store.get("run-numeric").getCurrentSimulationTime());
     }
 
     @Test
@@ -273,20 +292,6 @@ class KafkaIsoRunMonitorTest {
             null,
             new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
             new SimulationContextDto("sim-1", "instance-1", "coord-1", timeModeDto)
-        );
-    }
-
-    private static TimeSemanticsDto defaultTimeSemantics() {
-        return new TimeSemanticsDto(
-            TimeDomain.CONTINUOUS,
-            TimeValueEncoding.FLOAT64,
-            new RationalTimeDto(1, 1),
-            null,
-            new RationalTimeDto(0, 1),
-            TimeConversionPolicy.EXACT,
-            null,
-            null,
-            TimeInfinityPolicy.MAX_FINITE
         );
     }
 

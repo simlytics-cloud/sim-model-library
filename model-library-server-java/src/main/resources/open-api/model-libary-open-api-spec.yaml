@@ -340,111 +340,18 @@ components:
 
     TimeModeType:
       type: string
-      description: Runtime pacing strategy for simulation time.
+      description: Runtime pacing strategy independent of common logical time.
       enum: [real-time, scaled-real-time, virtual-time]
-
-    TimeDomain:
-      type: string
-      description: Logical time domain for model semantics.
-      enum: [discrete, continuous]
-
-    TimeValueEncoding:
-      type: string
-      description: Wire encoding for logical time values.
-      enum: [int64, decimal-string, float64]
-
-    TimeConversionPolicy:
-      type: string
-      description: Coordinator conversion strictness for cross-model logical time mapping.
-      enum: [exact, approximate]
-
-    TimeRoundingMode:
-      type: string
-      description: Rounding strategy used when approximate conversion is allowed.
-      enum: [floor, ceiling, half-up]
-
-    TimeInfinityPolicy:
-      type: string
-      description: Logical infinity representation policy.
-      enum: [max-finite, string-sentinel]
-
-    RationalTime:
-      type: object
-      required:
-        - numerator
-        - denominator
-      properties:
-        numerator:
-          type: integer
-          format: int64
-          example: 1
-        denominator:
-          type: integer
-          format: int64
-          minimum: 1
-          example: 1
-
-    TimeSemantics:
-      type: object
-      description: DEVS-oriented logical time semantics for model coordination and validation.
-      required:
-        - timeDomain
-        - valueEncoding
-        - unitSeconds
-        - originOffset
-        - conversionPolicy
-        - infinityPolicy
-      properties:
-        timeDomain:
-          $ref: '#/components/schemas/TimeDomain'
-        valueEncoding:
-          $ref: '#/components/schemas/TimeValueEncoding'
-        unitSeconds:
-          $ref: '#/components/schemas/RationalTime'
-          description: Rational number of SI seconds represented by one local model time unit.
-        quantum:
-          $ref: '#/components/schemas/RationalTime'
-          description: Minimum local time increment. Required for discrete time semantics.
-        originOffset:
-          $ref: '#/components/schemas/RationalTime'
-          description: Rational offset from local model time zero to global coordinator logical time zero.
-        conversionPolicy:
-          $ref: '#/components/schemas/TimeConversionPolicy'
-        maxAbsErrorSeconds:
-          type: number
-          format: double
-          exclusiveMinimum: 0
-          description: Maximum absolute conversion error in seconds when conversionPolicy is approximate.
-        roundingMode:
-          $ref: '#/components/schemas/TimeRoundingMode'
-        infinityPolicy:
-          $ref: '#/components/schemas/TimeInfinityPolicy'
-      allOf:
-        - if:
-            properties:
-              timeDomain:
-                const: discrete
-          then:
-            required: [quantum]
-        - if:
-            properties:
-              conversionPolicy:
-                const: approximate
-          then:
-            required: [maxAbsErrorSeconds, roundingMode]
 
     TimeMode:
       type: object
-      description: Configuration for simulation time and its relation to real-world time.
+      description: Optional runtime pacing configuration. Logical time uses the common unit-one JSON-number representation.
       required:
         - mode
-        - timeSemantics
       properties:
         mode:
           $ref: '#/components/schemas/TimeModeType'
-          description: Runtime pacing mode independent from logical time semantics.
-        timeSemantics:
-          $ref: '#/components/schemas/TimeSemantics'
+          description: Runtime pacing mode independent from logical time representation.
         realTimeFactor:
           type: number
           format: double
@@ -557,11 +464,9 @@ components:
         - updatedAt
       properties:
         value:
-          type: string
-          description: Encoded logical time value as reported by the simulation runtime.
-          example: '125.0'
-        timeSemantics:
-          $ref: '#/components/schemas/TimeSemantics'
+          type: number
+          description: Common logical time as a JSON number. Participants agree on Integer or Real representation and a unit length of one.
+          example: 125.0
         sourceMessageType:
           type: string
           example: NextInternalTimeReport
