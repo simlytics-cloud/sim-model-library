@@ -108,6 +108,8 @@ For example:
 curl http://127.0.0.1:8090/v1/models
 ```
 
+Licensed under the Apache License 2.0. See LICENSE for details.
+
 The OpenAPI document is authoritative for request and response schemas. In particular, `PUT /v1/models/{modelId}/run` requires `initializationParameters` and Kafka `bootstrapServers` and `topic`, then returns a pollable run URL. Use the hosted Swagger UI to inspect the model-specific initialization schema before submitting a run.
 
 ## Run monitoring and ISO-21175 scope
