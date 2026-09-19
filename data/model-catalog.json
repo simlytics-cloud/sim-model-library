@@ -1,0 +1,22 @@
+{
+  "models": [
+    {
+      "modelId": "irpsystem.irpmodel.Vehicle",
+      "name": "Vehicle",
+      "description": "Vehicle test model",
+      "timeMode": {
+        "mode": "scaled-real-time",
+        "realTimeFactor": 2.0
+      },
+      "implementationLanguage": "java",
+      "inputPorts": [],
+      "outputPorts": [],
+      "parameters": [],
+      "messageSchemas": {},
+      "initializationSchema": {
+        "type": "object"
+      },
+      "metadata": {}
+    }
+  ]
+}

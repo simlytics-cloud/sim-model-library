@@ -24,7 +24,9 @@ import iso.sim.server.service.RunMonitor;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RunServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ModelCatalogService catalogService = new ModelCatalogService(
-        new CatalogRepository(List.of("model-catalog.json"), objectMapper)
+        new CatalogRepository(List.of(testCatalogPath()), objectMapper)
     );
     private final RecordingRunExecutor recordingExecutor = new RecordingRunExecutor();
     private final RunResourceRegistry runResourceRegistry = new RunResourceRegistry();
@@ -192,6 +194,13 @@ class RunServiceTest {
             lastHandle = new RecordingRunHandle(context.getRunId());
             return lastHandle;
         }
+
+    }
+
+    private static String testCatalogPath() {
+        return Path.of(Objects.requireNonNull(
+            RunServiceTest.class.getResource("/model-catalog.json")
+        ).getPath()).toString();
     }
 
     private static class RecordingRunHandle implements RunHandle {

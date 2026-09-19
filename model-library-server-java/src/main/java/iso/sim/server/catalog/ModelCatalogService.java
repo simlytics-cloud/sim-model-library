@@ -9,15 +9,13 @@ import java.util.Comparator;
 import java.util.List;
 
 public class ModelCatalogService {
-    private final CatalogRepository repository;
-    private ModelCatalogDto catalog;
+    private final ModelCatalogDto catalog;
 
     public ModelCatalogService(CatalogRepository repository) {
-        this.repository = repository;
+        this.catalog = repository.loadCatalog();
     }
 
     public ModelListResponse listModels() {
-        ensureCatalogLoaded();
         List<ModelSummaryDto> summaries = catalog.getModels().stream()
             .sorted(Comparator.comparing(ModelDto::getModelId))
             .map(it -> new ModelSummaryDto(
@@ -31,16 +29,9 @@ public class ModelCatalogService {
     }
 
     public ModelDto getModel(String modelId) {
-        ensureCatalogLoaded();
         return catalog.getModels().stream()
             .filter(model -> model.getModelId().equals(modelId))
             .findFirst()
             .orElseThrow(() -> new ModelNotFoundException(modelId));
-    }
-
-    private void ensureCatalogLoaded() {
-        if (catalog == null) {
-            catalog = repository.loadCatalog();
-        }
     }
 }

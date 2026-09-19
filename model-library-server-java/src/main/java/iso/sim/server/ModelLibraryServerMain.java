@@ -32,7 +32,9 @@ public final class ModelLibraryServerMain {
         KafkaDefaultsResponse kafkaDefaults = KafkaDefaultsConfig.from(config).toResponse();
 
         ActorSystem actorSystem = ActorSystem.create("model-library-server");
-        ModelCatalogService service = new ModelCatalogService(new CatalogRepository());
+        ModelCatalogService service = new ModelCatalogService(
+            new CatalogRepository(config.getStringList("model.library.catalog.resources"))
+        );
         RunExecutor runExecutor = switch (runtimeExecutorType.toLowerCase(Locale.ROOT)) {
             case "stub" -> new StubRunExecutor();
             default -> throw new IllegalArgumentException("Unsupported runtime executor '" + runtimeExecutorType + "'");

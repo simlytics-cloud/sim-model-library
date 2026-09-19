@@ -2,6 +2,7 @@ package iso.sim.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.typesafe.config.ConfigFactory;
 import iso.sim.server.catalog.CatalogRepository;
 import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.ErrorResponse;
@@ -50,7 +51,10 @@ class ModelLibraryRoutesIntegrationTest {
     @Test
     void routesPreserveRunAndErrorApiContract() throws Exception {
         ModelCatalogService service = new ModelCatalogService(
-            new CatalogRepository(List.of("model-catalog.json"), objectMapper)
+            new CatalogRepository(
+                ConfigFactory.load().getStringList("model.library.catalog.resources"),
+                objectMapper
+            )
         );
         RunService runService = new RunService(
             service,
