@@ -1,0 +1,164 @@
+openapi: 3.1.0
+info:
+  title: Optional Coordinator Helper API
+  version: 1.0.0
+  description: HTTP control plane for a coordinator and registered remote model runners. It does not alter simulation Kafka records.
+paths:
+  /v1/coordinated-runs:
+    post:
+      summary: Create a coordinated execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCoordinatedRunRequest' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+  /v1/coordinated-runs/{runId}:
+    get:
+      summary: Get authoritative coordinated status
+      parameters: [ { $ref: '#/components/parameters/RunId' } ]
+      responses:
+        '200': { description: Status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+    delete:
+      summary: Cancel a coordinated execution and fan out cleanup
+      parameters: [ { $ref: '#/components/parameters/RunId' } ]
+      responses:
+        '200': { description: Canceled status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+  /v1/coordinated-runs/{runId}/remote-runners:
+    post:
+      summary: Register a required remote model runner
+      parameters: [ { $ref: '#/components/parameters/RunId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRemoteRunnerRequest' }
+      responses:
+        '200': { description: Updated status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+  /v1/coordinated-runs/{runId}/start:
+    post:
+      summary: Start all registered remote model runners
+      parameters: [ { $ref: '#/components/parameters/RunId' } ]
+      responses:
+        '200': { description: Starting status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+  /v1/coordinated-runs/{runId}/remote-runners/{modelInstanceId}/events:
+    post:
+      summary: Report an idempotent remote-runner lifecycle fact
+      parameters:
+        - { $ref: '#/components/parameters/RunId' }
+        - name: modelInstanceId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: '#/components/parameters/CallbackToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RemoteRunnerEventReport' }
+      responses:
+        '200': { description: Updated status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+        '403': { description: Callback token was not accepted }
+  /v1/coordinated-runs/{runId}/coordinator/events:
+    post:
+      summary: Report an idempotent coordinator lifecycle fact
+      parameters:
+        - { $ref: '#/components/parameters/RunId' }
+        - { $ref: '#/components/parameters/CallbackToken' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoordinatorEventReport' }
+      responses:
+        '200': { description: Updated status, content: { application/json: { schema: { $ref: '#/components/schemas/CoordinatedRunStatus' } } } }
+components:
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string }
+    CallbackToken:
+      name: X-Coordinator-Helper-Token
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    CreateCoordinatedRunRequest:
+      type: object
+      required: [runId, simulationId, coordinatorId, coordinatorToken]
+      properties:
+        runId: { type: string }
+        simulationId: { type: string }
+        coordinatorId: { type: string }
+        coordinatorToken: { type: string, writeOnly: true }
+    RegisterRemoteRunnerRequest:
+      type: object
+      required: [modelId, modelInstanceId, modelLibraryUrl, initializationParameters, kafka, timeMode, callbackToken]
+      properties:
+        modelId: { type: string }
+        modelInstanceId: { type: string }
+        modelLibraryUrl: { type: string, format: uri }
+        initializationParameters: { type: object, additionalProperties: true }
+        kafka: { $ref: '#/components/schemas/KafkaConfiguration' }
+        timeMode: { $ref: '#/components/schemas/TimeMode' }
+        callbackToken: { type: string, writeOnly: true }
+    KafkaConfiguration:
+      type: object
+      required: [bootstrapServers, topic]
+      properties:
+        bootstrapServers: { type: string }
+        topic: { type: string }
+        securityProtocol: { type: string }
+        saslMechanism: { type: string }
+        properties: { type: object, additionalProperties: { type: string } }
+    TimeMode:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [real-time, scaled-real-time, virtual-time] }
+        realTimeFactor: { type: number }
+    RemoteRunnerEventReport:
+      type: object
+      required: [runId, modelInstanceId, coordinatorId, eventId, eventType, timestamp]
+      properties:
+        runId: { type: string }
+        modelInstanceId: { type: string }
+        coordinatorId: { type: string }
+        eventId: { type: string }
+        eventType: { type: string, enum: [remote-runner-accepted, remote-runner-starting, remote-runner-ready, remote-runner-stopped, remote-runner-failed] }
+        timestamp: { type: string, format: date-time }
+        errorDetail: { type: string }
+    CoordinatorEventReport:
+      type: object
+      required: [eventId, eventType, timestamp]
+      properties:
+        eventId: { type: string }
+        eventType: { type: string, enum: [progress, completed, failed] }
+        timestamp: { type: string, format: date-time }
+        errorDetail: { type: string }
+    CoordinatedRunStatus:
+      type: object
+      required: [runId, simulationId, coordinatorId, status, remoteRunners]
+      properties:
+        runId: { type: string }
+        simulationId: { type: string }
+        coordinatorId: { type: string }
+        status: { type: string, enum: [accepted, starting, ready, running, completed, failed, canceled] }
+        acceptedAt: { type: string, format: date-time }
+        readyAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+        message: { type: string }
+        remoteRunners:
+          type: array
+          items:
+            type: object
+            properties:
+              modelId: { type: string }
+              modelInstanceId: { type: string }
+              localStatus: { type: string }
+              updatedAt: { type: string, format: date-time }
+              errorDetail: { type: string }

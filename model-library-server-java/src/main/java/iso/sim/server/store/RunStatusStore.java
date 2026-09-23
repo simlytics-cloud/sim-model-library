@@ -23,6 +23,8 @@ import java.util.List;
 public interface RunStatusStore {
     void save(RunStatusResponse status);
 
+    boolean saveIfAbsent(RunStatusResponse status);
+
     RunStatusResponse get(String runId);
 
     List<RunStatusResponse> getAll();

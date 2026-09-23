@@ -30,6 +30,11 @@ public class InMemoryRunStatusStore implements RunStatusStore {
     }
 
     @Override
+    public boolean saveIfAbsent(RunStatusResponse status) {
+        return runs.putIfAbsent(status.getRunId(), status) == null;
+    }
+
+    @Override
     public RunStatusResponse get(String runId) {
         return runs.get(runId);
     }

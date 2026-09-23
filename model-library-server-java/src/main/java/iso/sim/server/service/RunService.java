@@ -16,6 +16,7 @@
 
 package iso.sim.server.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
 import iso.sim.server.dto.run.RunStatusResponse;
@@ -28,16 +29,17 @@ import iso.sim.server.runtime.RunResourceRegistry;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import iso.sim.server.store.RunStatusStore;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.util.concurrent.Executors;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 public class RunService {
-    private static final Set<String> TERMINAL_STATUSES = Set.of("completed", "failed", "canceled");
+    private static final Set<String> TERMINAL_STATUSES = Set.of("locally-stopped", "locally-failed");
+    private static final Pattern RECEIVER_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
 
     private final ModelCatalogService modelCatalogService;
     private final RunStatusStore runStatusStore;
@@ -45,9 +47,18 @@ public class RunService {
     private final RunResourceRegistry runResourceRegistry;
     private final RunTerminalCoordinator runTerminalCoordinator;
     private final RunLifecycleManager runLifecycleManager;
+    private final CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter;
+    private final Map<String, RunExecutionContext> executionContexts = new ConcurrentHashMap<>();
 
     public RunService(ModelCatalogService modelCatalogService, RunReadinessProbeSelector runReadinessProbeSelector) {
-        this(modelCatalogService, new StubRunExecutor(), new InMemoryRunStatusStore(), new RunResourceRegistry(), runReadinessProbeSelector);
+        this(
+            modelCatalogService,
+            new StubRunExecutor(),
+            new InMemoryRunStatusStore(),
+            new RunResourceRegistry(),
+            runReadinessProbeSelector,
+            new HttpCoordinatorHelperCallbackReporter(new com.fasterxml.jackson.databind.ObjectMapper())
+        );
     }
 
     public RunService(
@@ -56,7 +67,14 @@ public class RunService {
         RunStatusStore runStatusStore,
         RunReadinessProbeSelector runReadinessProbeSelector
     ) {
-        this(modelCatalogService, runExecutor, runStatusStore, new RunResourceRegistry(), runReadinessProbeSelector);
+        this(
+            modelCatalogService,
+            runExecutor,
+            runStatusStore,
+            new RunResourceRegistry(),
+            runReadinessProbeSelector,
+            new HttpCoordinatorHelperCallbackReporter(new com.fasterxml.jackson.databind.ObjectMapper())
+        );
     }
 
     public RunService(
@@ -72,11 +90,34 @@ public class RunService {
             runStatusStore,
             runResourceRegistry,
             runReadinessProbeSelector,
-            buildDefaultMonitor(runStatusStore, runResourceRegistry)
+            new HttpCoordinatorHelperCallbackReporter(new com.fasterxml.jackson.databind.ObjectMapper())
         );
     }
 
-    private static RunMonitor buildDefaultMonitor(RunStatusStore runStatusStore, RunResourceRegistry runResourceRegistry) {
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        RunReadinessProbeSelector runReadinessProbeSelector,
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
+    ) {
+        this(
+            modelCatalogService,
+            runExecutor,
+            runStatusStore,
+            runResourceRegistry,
+            runReadinessProbeSelector,
+            buildDefaultMonitor(runStatusStore, runResourceRegistry, coordinatorHelperCallbackReporter),
+            coordinatorHelperCallbackReporter
+        );
+    }
+
+    private static RunMonitor buildDefaultMonitor(
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
+    ) {
         RunLifecycleService lifecycleService = new RunLifecycleService(runStatusStore);
         RunTerminalCoordinator terminalCoordinator = new RunTerminalCoordinator(lifecycleService, runStatusStore, runResourceRegistry);
         return new KafkaIsoRunMonitor(
@@ -85,7 +126,8 @@ public class RunService {
             terminalCoordinator,
             new Iso21175MessageParser(new ObjectMapper()),
             new DefaultKafkaConsumerAdapterFactory(),
-            Executors.newSingleThreadExecutor()
+            Executors.newSingleThreadExecutor(),
+            coordinatorHelperCallbackReporter
         );
     }
 
@@ -104,7 +146,7 @@ public class RunService {
             runResourceRegistry,
             runReadinessProbeSelector,
             runMonitor,
-            new RunLifecycleService(runStatusStore)
+            (context, eventType, errorDetail) -> { }
         );
     }
 
@@ -115,20 +157,44 @@ public class RunService {
         RunResourceRegistry runResourceRegistry,
         RunReadinessProbeSelector runReadinessProbeSelector,
         RunMonitor runMonitor,
-        RunLifecycleService runLifecycleService
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
+    ) {
+        this(
+            modelCatalogService,
+            runExecutor,
+            runStatusStore,
+            runResourceRegistry,
+            runReadinessProbeSelector,
+            runMonitor,
+            new RunLifecycleService(runStatusStore),
+            coordinatorHelperCallbackReporter
+        );
+    }
+
+    public RunService(
+        ModelCatalogService modelCatalogService,
+        RunExecutor runExecutor,
+        RunStatusStore runStatusStore,
+        RunResourceRegistry runResourceRegistry,
+        RunReadinessProbeSelector runReadinessProbeSelector,
+        RunMonitor runMonitor,
+        RunLifecycleService runLifecycleService,
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
     ) {
         this.modelCatalogService = modelCatalogService;
         this.runStatusStore = runStatusStore;
         this.runLifecycleService = runLifecycleService;
         this.runResourceRegistry = runResourceRegistry;
         this.runTerminalCoordinator = new RunTerminalCoordinator(runLifecycleService, runStatusStore, runResourceRegistry);
+        this.coordinatorHelperCallbackReporter = coordinatorHelperCallbackReporter;
         this.runLifecycleManager = new RunLifecycleManager(
             runExecutor,
             runLifecycleService,
             runResourceRegistry,
             runTerminalCoordinator,
             runReadinessProbeSelector,
-            runMonitor
+            runMonitor,
+            coordinatorHelperCallbackReporter
         );
     }
 
@@ -136,13 +202,17 @@ public class RunService {
         modelCatalogService.getModel(modelId);
         validateRequest(request);
 
-        String runId = request.getRunId() != null && !request.getRunId().isBlank()
-            ? request.getRunId()
-            : "run-" + UUID.randomUUID();
+        String runId = request.getRunId();
         String statusUrl = "/v1/runs/" + runId;
-        RunStatusResponse status = runLifecycleService.markAccepted(runId, modelId, "Run request accepted");
+        RunExecutionContext context = new RunExecutionContext(runId, modelId, request);
+        if (!runLifecycleService.markAccepted(context, "Model library accepted remote model-run request")) {
+            throw new RunAlreadyExistsException(runId);
+        }
+        executionContexts.put(runId, context);
+        RunStatusResponse status = runStatusStore.get(runId);
 
-        runLifecycleManager.startRun(new RunExecutionContext(runId, modelId, request));
+        coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_ACCEPTED, null);
+        runLifecycleManager.startRun(context);
 
         return new StartModelRunResponse(
             runId,
@@ -176,7 +246,12 @@ public class RunService {
         }
 
         runResourceRegistry.stop(runId);
-        return runLifecycleService.markCanceled(runId, "Run canceled by request");
+        RunStatusResponse stopped = runLifecycleService.markLocallyStopped(runId, "Local instance stopped by request");
+        RunExecutionContext context = executionContexts.get(runId);
+        if (context != null) {
+            coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_STOPPED, null);
+        }
+        return stopped;
     }
 
     public RunStatusStore getRunStatusStore() {
@@ -188,6 +263,12 @@ public class RunService {
     }
 
     private void validateRequest(StartModelRunRequest request) {
+        if (request == null) {
+            throw new InvalidRunRequestException("Request body is required");
+        }
+        if (request.getRunId() == null || request.getRunId().isBlank()) {
+            throw new InvalidRunRequestException("'runId' is required and must be supplied by the coordinator or its orchestrator");
+        }
         if (request.getInitializationParameters() == null) {
             throw new InvalidRunRequestException("'initializationParameters' is required");
         }
@@ -201,5 +282,29 @@ public class RunService {
         if (kafka.getTopic() == null || kafka.getTopic().isBlank()) {
             throw new InvalidRunRequestException("'kafka.topic' is required");
         }
+        if (request.getCoordinatorHelper() != null
+            && (request.getCoordinatorHelper().getEndpoint() == null || request.getCoordinatorHelper().getEndpoint().isBlank()
+            || request.getCoordinatorHelper().getToken() == null || request.getCoordinatorHelper().getToken().isBlank())) {
+            throw new InvalidRunRequestException("'coordinatorHelper.endpoint' and 'coordinatorHelper.token' are both required when coordinatorHelper is supplied");
+        }
+        if (request.getSimulation() == null) {
+            throw new InvalidRunRequestException("'simulation' is required");
+        }
+        if (request.getSimulation().getSimulationId() == null || request.getSimulation().getSimulationId().isBlank()) {
+            throw new InvalidRunRequestException("'simulation.simulationId' is required");
+        }
+        if (!isReceiverId(request.getSimulation().getModelInstanceId())) {
+            throw new InvalidRunRequestException("'simulation.modelInstanceId' must use letters, digits, '.', '_', or '-'");
+        }
+        if (!isReceiverId(request.getSimulation().getCoordinatorId())) {
+            throw new InvalidRunRequestException("'simulation.coordinatorId' must use letters, digits, '.', '_', or '-'");
+        }
+        if (request.getSimulation().getTimeMode() == null) {
+            throw new InvalidRunRequestException("'simulation.timeMode' is required");
+        }
+    }
+
+    private boolean isReceiverId(String value) {
+        return value != null && RECEIVER_ID.matcher(value).matches();
     }
 }

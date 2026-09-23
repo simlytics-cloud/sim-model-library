@@ -31,6 +31,7 @@ public class RunLifecycleManager {
     private final RunTerminalCoordinator runTerminalCoordinator;
     private final RunReadinessProbeSelector runReadinessProbeSelector;
     private final RunMonitor runMonitor;
+    private final CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter;
 
     public RunLifecycleManager(
         RunExecutor runExecutor,
@@ -40,12 +41,33 @@ public class RunLifecycleManager {
         RunReadinessProbeSelector runReadinessProbeSelector,
         RunMonitor runMonitor
     ) {
+        this(
+            runExecutor,
+            runLifecycleService,
+            runResourceRegistry,
+            runTerminalCoordinator,
+            runReadinessProbeSelector,
+            runMonitor,
+            (context, eventType, errorDetail) -> { }
+        );
+    }
+
+    public RunLifecycleManager(
+        RunExecutor runExecutor,
+        RunLifecycleService runLifecycleService,
+        RunResourceRegistry runResourceRegistry,
+        RunTerminalCoordinator runTerminalCoordinator,
+        RunReadinessProbeSelector runReadinessProbeSelector,
+        RunMonitor runMonitor,
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
+    ) {
         this.runExecutor = runExecutor;
         this.runLifecycleService = runLifecycleService;
         this.runResourceRegistry = runResourceRegistry;
         this.runTerminalCoordinator = runTerminalCoordinator;
         this.runReadinessProbeSelector = runReadinessProbeSelector;
         this.runMonitor = runMonitor;
+        this.coordinatorHelperCallbackReporter = coordinatorHelperCallbackReporter;
     }
 
     public void startRun(RunExecutionContext context) {
@@ -53,21 +75,24 @@ public class RunLifecycleManager {
         runLifecycleService.markStarting(runId, "Starting run resources");
 
         try {
+            coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_STARTING, null);
             RunHandle handle = runExecutor.start(context);
             runResourceRegistry.register(runId, handle);
 
             RunReadinessProbe runReadinessProbe = runReadinessProbeSelector.select(context);
             RunReadinessResult readiness = runReadinessProbe.awaitReady(context, handle);
             if (readiness.isReady()) {
-                runLifecycleService.markReady(runId, readiness.getMessage());
+                runLifecycleService.markLocallyReady(runId, readiness.getMessage());
+                coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_READY, null);
                 RunHandle monitorHandle = runMonitor.startMonitoring(context, handle);
                 runResourceRegistry.register(runId, new CompositeRunHandle(runId, List.of(handle, monitorHandle)));
                 return;
             }
 
             runTerminalCoordinator.failRun(runId, "Run readiness failed: " + readiness.getMessage());
-        } catch (RuntimeException ex) {
+        } catch (IllegalStateException ex) {
             runTerminalCoordinator.failRun(runId, "Run failed to start: " + ex.getMessage());
+            reportFailure(context, "Run failed to start: " + ex.getMessage());
         }
     }
 
@@ -77,5 +102,13 @@ public class RunLifecycleManager {
 
     public void failRun(String runId, String message) {
         runTerminalCoordinator.failRun(runId, message);
+    }
+
+    private void reportFailure(RunExecutionContext context, String message) {
+        try {
+            coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_FAILED, message);
+        } catch (RuntimeException ignored) {
+            // Callback failures never replace the local diagnostic state.
+        }
     }
 }

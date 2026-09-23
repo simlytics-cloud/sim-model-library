@@ -23,6 +23,7 @@ import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.executor.StubRunExecutor;
+import iso.sim.server.executor.example.ExampleClerkModelRunExecutor;
 import iso.sim.server.service.KafkaDefaultsConfig;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.RunService;
@@ -53,6 +54,7 @@ public final class ModelLibraryServerMain {
         );
         RunExecutor runExecutor = switch (runtimeExecutorType.toLowerCase(Locale.ROOT)) {
             case "stub" -> new StubRunExecutor();
+            case "example-clerk" -> new ExampleClerkModelRunExecutor();
             default -> throw new IllegalArgumentException("Unsupported runtime executor '" + runtimeExecutorType + "'");
         };
         RunService runService = new RunService(service, runExecutor, new InMemoryRunStatusStore(), new DefaultRunReadinessProbeSelector());

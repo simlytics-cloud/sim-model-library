@@ -66,7 +66,10 @@ export interface ModelDetail extends ModelSummary {
 export interface RunStatus {
   runId: string;
   modelId: string;
-  status: string;
+  simulationId: string;
+  modelInstanceId: string;
+  coordinatorId: string;
+  status: 'accepted' | 'starting' | 'locally-ready' | 'locally-stopped' | 'locally-failed';
   acceptedAt: string;
   readyAt?: string;
   startedAt?: string;
@@ -87,6 +90,26 @@ export interface KafkaDefaults {
   saslMechanism: string;
 }
 
+export interface KafkaTransport {
+  bootstrapServers: string;
+  topic: string;
+  securityProtocol?: string;
+  saslMechanism?: string;
+  properties?: { [key: string]: string };
+}
+
+export interface RemoteModelRunRequest {
+  runId: string;
+  initializationParameters: any;
+  simulation: {
+    simulationId: string;
+    modelInstanceId: string;
+    coordinatorId: string;
+    timeMode?: TimeModeConfig;
+  };
+  kafka: KafkaTransport;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -103,7 +126,7 @@ export class ModelService {
     return this.http.get<ModelDetail>(`${this.apiUrl}/models/${modelId}`);
   }
 
-  runModel(modelId: string, request: any): Observable<any> {
+  runModel(modelId: string, request: RemoteModelRunRequest): Observable<any> {
     return this.http.put(`${this.apiUrl}/models/${modelId}/run`, request);
   }
 

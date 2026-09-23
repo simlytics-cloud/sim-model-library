@@ -44,6 +44,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
     private final Iso21175MessageParser parser;
     private final KafkaConsumerAdapterFactory consumerFactory;
     private final Executor executor;
+    private final CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter;
 
     public KafkaIsoRunMonitor(
         RunLifecycleService runLifecycleService,
@@ -51,7 +52,8 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         RunTerminalCoordinator runTerminalCoordinator,
         Iso21175MessageParser parser,
         KafkaConsumerAdapterFactory consumerFactory,
-        Executor executor
+        Executor executor,
+        CoordinatorHelperCallbackReporter coordinatorHelperCallbackReporter
     ) {
         this.runLifecycleService = runLifecycleService;
         this.runStatusStore = runStatusStore;
@@ -59,15 +61,14 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         this.parser = parser;
         this.consumerFactory = consumerFactory;
         this.executor = executor;
+        this.coordinatorHelperCallbackReporter = coordinatorHelperCallbackReporter;
     }
 
     @Override
     public RunHandle startMonitoring(RunExecutionContext context, RunHandle runtimeHandle) {
         String runId = context.getRunId();
         String topic = context.getRequest().getKafka().getTopic();
-        String receiverId = context.getRequest().getSimulation() != null
-            ? context.getRequest().getSimulation().getModelInstanceId()
-            : null;
+        String receiverId = context.getRequest().getSimulation().getModelInstanceId();
         String consumerGroup = runId + ":" + receiverId;
 
         logger.info(() -> "Starting Kafka run monitor for runId=" + runId
@@ -108,11 +109,15 @@ public class KafkaIsoRunMonitor implements RunMonitor {
                 if (!messages.isEmpty()) {
                     logger.fine(() -> "Polled " + messages.size() + " Kafka message(s) for runId=" + runId);
                 }
-                for (String rawValue : messages) {
+                for (KafkaConsumerRecord record : messages) {
                     if (!active.get()) {
                         break;
                     }
-                    Optional<Iso21175Message> maybeMessage = parser.parse(rawValue);
+                    if (!runId.equals(record.headerValue("X-Run-Id"))) {
+                        logger.fine(() -> "Ignoring Kafka record before parsing because X-Run-Id does not match runId=" + runId);
+                        continue;
+                    }
+                    Optional<Iso21175Message> maybeMessage = parser.parse(record.value());
                     if (maybeMessage.isEmpty()) {
                         logger.fine(() -> "Ignoring Kafka message for runId=" + runId + " because parsing/validation failed");
                         continue;
@@ -128,7 +133,7 @@ public class KafkaIsoRunMonitor implements RunMonitor {
                         + ", messageType=" + message.getMessageType()
                         + ", messageId=" + message.getMessageId());
                     updateCurrentSimulationTime(context, message);
-                    if (handleLifecycleMessage(runId, message)) {
+                    if (handleLifecycleMessage(context, message)) {
                         active.set(false);
                         logger.info(() -> "Stopping Kafka monitor loop after terminal lifecycle event for runId=" + runId
                             + ", messageType=" + message.getMessageType());
@@ -137,40 +142,45 @@ public class KafkaIsoRunMonitor implements RunMonitor {
                     }
                 }
             }
-        } catch (RuntimeException ex) {
+        } catch (org.apache.kafka.common.KafkaException | IllegalStateException ex) {
             logger.log(Level.SEVERE, "Kafka monitor loop failed for runId=" + runId + ": " + ex.getMessage(), ex);
             runTerminalCoordinator.failRun(runId, "Run monitor failed unexpectedly: " + ex.getMessage());
+            try {
+                coordinatorHelperCallbackReporter.report(
+                    context, RemoteRunnerEventType.REMOTE_RUNNER_FAILED, "Run monitor failed unexpectedly: " + ex.getMessage()
+                );
+            } catch (RuntimeException reportFailure) {
+                logger.log(Level.WARNING, "Could not report monitor failure to coordinator helper for runId=" + runId, reportFailure);
+            }
             active.set(false);
             consumer.close();
         }
     }
 
-    private boolean handleLifecycleMessage(String runId, Iso21175Message message) {
+    private boolean handleLifecycleMessage(RunExecutionContext context, Iso21175Message message) {
+        String runId = context.getRunId();
         String messageType = message.getMessageType();
         if ("NextInternalTimeReport".equals(messageType)) {
-            RunStatusResponse current = runStatusStore.get(runId);
-            if (current != null && "ready".equals(current.getStatus())) {
-                logger.info(() -> "Marking run as running from messageType=NextInternalTimeReport for runId=" + runId
-                    + ", messageId=" + message.getMessageId());
-                runLifecycleService.markRunning(runId, "Simulation reported progress");
-            } else {
-                logger.fine(() -> "Received NextInternalTimeReport but run state is not ready for runId=" + runId
-                    + ", currentStatus=" + (current == null ? "null" : current.getStatus()));
-            }
+            logger.fine(() -> "Observed coordinator progress for runId=" + runId
+                + "; coordinated status remains coordinator-helper-owned");
             return false;
         }
 
         if ("ModelTerminated".equals(messageType)) {
             logger.info(() -> "Received ModelTerminated for runId=" + runId
                 + ", messageId=" + message.getMessageId());
-            runTerminalCoordinator.completeRun(runId, "Simulation terminated");
+            runTerminalCoordinator.completeRun(runId, "Local model runtime observed termination");
+            coordinatorHelperCallbackReporter.report(context, RemoteRunnerEventType.REMOTE_RUNNER_STOPPED, null);
             return true;
         }
 
         if ("ErrorReport".equals(messageType) && isErrorOrFatal(message)) {
             logger.warning(() -> "Received ErrorReport with terminal severity for runId=" + runId
                 + ", messageId=" + message.getMessageId());
-            runTerminalCoordinator.failRun(runId, "Simulation reported error");
+            runTerminalCoordinator.failRun(runId, "Local model runtime observed error");
+            coordinatorHelperCallbackReporter.report(
+                context, RemoteRunnerEventType.REMOTE_RUNNER_FAILED, "Local model runtime observed error"
+            );
             return true;
         }
 
@@ -213,6 +223,9 @@ public class KafkaIsoRunMonitor implements RunMonitor {
         runStatusStore.save(new RunStatusResponse(
             current.getRunId(),
             current.getModelId(),
+            current.getSimulationId(),
+            current.getModelInstanceId(),
+            current.getCoordinatorId(),
             current.getStatus(),
             current.getAcceptedAt(),
             current.getReadyAt(),

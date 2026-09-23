@@ -79,7 +79,7 @@ import { RunConfigDialogComponent } from '../run-config-dialog/run-config-dialog
             </div>
           </mat-card-content>
           <mat-card-actions>
-            <button mat-raised-button color="accent" (click)="configureRun()">Configure Run</button>
+            <button mat-raised-button color="accent" (click)="configureRun()">Configure Remote Runner</button>
           </mat-card-actions>
         </mat-card>
 
@@ -177,13 +177,13 @@ export class ModelDetailComponent implements OnInit {
       if (result) {
         this.modelService.runModel(this.model!.modelId, result).subscribe({
           next: (response) => {
-            this.snackBar.open(`Run started successfully: ${response.runId}`, 'Close', {
+            this.snackBar.open(`Remote runner accepted for run: ${response.runId}`, 'Close', {
               duration: 5000
             });
           },
           error: (err) => {
-            console.error('Failed to start run', err);
-            this.snackBar.open('Failed to start run: ' + (err.error?.message || err.message), 'Close', {
+            console.error('Failed to start remote runner', err);
+            this.snackBar.open('Failed to start remote runner: ' + (err.error?.message || err.message), 'Close', {
               duration: 5000
             });
           }

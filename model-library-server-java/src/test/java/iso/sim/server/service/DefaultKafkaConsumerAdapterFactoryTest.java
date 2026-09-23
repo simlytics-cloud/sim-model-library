@@ -18,12 +18,14 @@ package iso.sim.server.service;
 
 import iso.sim.server.dto.run.KafkaConfigurationDto;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 class DefaultKafkaConsumerAdapterFactoryTest {
 
@@ -46,5 +48,17 @@ class DefaultKafkaConsumerAdapterFactoryTest {
         assertEquals("run-1:receiver-1", properties.getProperty(ConsumerConfig.GROUP_ID_CONFIG));
         assertEquals("client-42", properties.getProperty(ConsumerConfig.CLIENT_ID_CONFIG));
         assertEquals("kafka:9092", properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    }
+
+    @Test
+    void preservesKafkaRecordKeyAndHeadersForEarlyRunFiltering() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, "run-1", "{\"messageType\":\"x\"}");
+        record.headers().add("X-Run-Id", "run-1".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        KafkaConsumerRecord adapted = DefaultKafkaConsumerAdapterFactory.toKafkaConsumerRecord(record);
+
+        assertEquals("run-1", adapted.key());
+        assertEquals("run-1", adapted.headerValue("X-Run-Id"));
+        assertArrayEquals("run-1".getBytes(java.nio.charset.StandardCharsets.UTF_8), adapted.headers().get("X-Run-Id"));
     }
 }

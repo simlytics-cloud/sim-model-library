@@ -1,7 +1,7 @@
 openapi: 3.1.0
 
 info:
-  title: DEVS Model API
+  title: Remote Model Library API
   version: 1.0.0
 
 paths:
@@ -36,7 +36,7 @@ paths:
 
   /v1/models/{modelId}/run:
     put:
-      summary: Start a model run
+      summary: Start a remote model runner
       operationId: startModelRun
       parameters:
         - $ref: '#/components/parameters/ModelId'
@@ -48,7 +48,7 @@ paths:
               $ref: '#/components/schemas/StartModelRunRequest'
       responses:
         '202':
-          description: Run request accepted and queued for execution startup
+          description: Remote model-run request accepted
           headers:
             Location:
               description: URL for polling run status
@@ -61,6 +61,8 @@ paths:
                 $ref: '#/components/schemas/StartModelRunResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '409':
+          description: The model library has already seen this runId. Retries are rejected.
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -270,12 +272,14 @@ components:
     StartModelRunRequest:
       type: object
       required:
+        - runId
         - initializationParameters
         - kafka
+        - simulation
       properties:
         runId:
           type: string
-          description: Optional caller-provided run identifier.
+          description: Immutable identifier created and supplied by the coordinator or its orchestrator. The model library never generates it and rejects every duplicate.
           example: run-001
 
         initializationParameters:
@@ -291,10 +295,13 @@ components:
         simulation:
           $ref: '#/components/schemas/SimulationContext'
 
+        coordinatorHelper:
+          $ref: '#/components/schemas/CoordinatorHelperCallback'
+
     KafkaConfiguration:
       type: object
       description: |
-        Kafka runtime settings for receiving simulation output from a shared topic.
+        Caller-supplied Kafka transport settings for the remote model runner.
         The consumer group ID is not caller-configurable; at runtime it is always
         derived as `runId:receiverId`, giving each receiver stable run-scoped offset
         tracking. Callers must not set `group.id` in Kafka client configuration.
@@ -325,6 +332,7 @@ components:
 
     SimulationContext:
       type: object
+      required: [simulationId, modelInstanceId, coordinatorId, timeMode]
       properties:
         simulationId:
           type: string
@@ -332,11 +340,25 @@ components:
         modelInstanceId:
           type: string
           example: instance-001
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
         coordinatorId:
           type: string
           example: mission-coordinator-alpha
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
         timeMode:
           $ref: '#/components/schemas/TimeMode'
+
+    CoordinatorHelperCallback:
+      type: object
+      description: Optional HTTP callback to a separately deployed coordinator helper. It is not part of the Kafka simulation transport.
+      required: [endpoint, token]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        token:
+          type: string
+          writeOnly: true
 
     TimeModeType:
       type: string
@@ -345,7 +367,7 @@ components:
 
     TimeMode:
       type: object
-      description: Optional runtime pacing configuration. Logical time uses the common unit-one JSON-number representation.
+      description: Required runtime pacing configuration. Logical time uses the common unit-one JSON-number representation.
       required:
         - mode
       properties:
@@ -375,7 +397,7 @@ components:
       properties:
         runId:
           type: string
-          description: Server-assigned run identifier for status polling.
+          description: Coordinator-supplied run identifier for remote-run status polling.
           example: run-7f83a9c2
         modelId:
           type: string
@@ -389,7 +411,7 @@ components:
         acceptedAt:
           type: string
           format: date-time
-          description: Timestamp when the server accepted the run request.
+          description: Timestamp when the model library accepted the remote model-run request.
           example: '2026-06-14T12:00:00Z'
         message:
           type: string
@@ -407,6 +429,12 @@ components:
         modelId:
           type: string
           example: irpsystem.irpmodel.Vehicle
+        simulationId:
+          type: string
+        modelInstanceId:
+          type: string
+        coordinatorId:
+          type: string
         status:
           $ref: '#/components/schemas/RunStatus'
         acceptedAt:
@@ -416,7 +444,7 @@ components:
         readyAt:
           type: string
           format: date-time
-          description: Set when runtime signals readiness for execution.
+          description: Set when the remote model runner signals local readiness. Coordinated readiness belongs to an optional coordinator helper.
           example: '2026-06-14T12:00:05Z'
         startedAt:
           type: string
@@ -480,8 +508,8 @@ components:
 
     RunStatus:
       type: string
-      description: Lifecycle state for a submitted run.
-      enum: [accepted, starting, ready, running, completed, failed, canceled]
+      description: Remote model-runner lifecycle state. Coordinated lifecycle is available only from an optional coordinator helper.
+      enum: [accepted, starting, locally-ready, locally-stopped, locally-failed]
 
     JsonSchema:
       type: object

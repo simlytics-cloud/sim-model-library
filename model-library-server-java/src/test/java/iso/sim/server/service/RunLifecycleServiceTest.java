@@ -41,16 +41,12 @@ class RunLifecycleServiceTest {
         RunStatusResponse starting = lifecycleService.markStarting("run-1", "starting");
         assertEquals("starting", starting.getStatus());
 
-        RunStatusResponse ready = lifecycleService.markReady("run-1", "ready");
-        assertEquals("ready", ready.getStatus());
+        RunStatusResponse ready = lifecycleService.markLocallyReady("run-1", "ready");
+        assertEquals("locally-ready", ready.getStatus());
         assertNotNull(ready.getReadyAt());
 
-        RunStatusResponse running = lifecycleService.markRunning("run-1", "running");
-        assertEquals("running", running.getStatus());
-        assertNotNull(running.getStartedAt());
-
-        RunStatusResponse completed = lifecycleService.markCompleted("run-1", "completed");
-        assertEquals("completed", completed.getStatus());
-        assertNotNull(completed.getCompletedAt());
+        RunStatusResponse stopped = lifecycleService.markLocallyStopped("run-1", "stopped");
+        assertEquals("locally-stopped", stopped.getStatus());
+        assertNotNull(stopped.getCompletedAt());
     }
 }

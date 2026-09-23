@@ -33,7 +33,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
         <button mat-icon-button routerLink="/runs">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        <h2>Run Details: {{run.runId}}</h2>
+        <h2>Remote Runner Details: {{run.runId}}</h2>
       </div>
 
       <mat-card>
@@ -48,7 +48,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
               <a [routerLink]="['/models', run.modelId]">{{run.modelId}}</a>
             </div>
             <div class="info-item">
-              <label>Status:</label>
+              <label>Runner Status:</label>
               <span [class]="'status-badge ' + run.status">{{run.status}}</span>
             </div>
             <div class="info-item" *ngIf="run.message">
@@ -89,20 +89,20 @@ import { ModelService, RunStatus } from '../../services/model.service';
            <button mat-button color="primary" (click)="refresh()" [disabled]="deleting">REFRESH</button>
            <button mat-button color="warn" (click)="deleteRun()" [disabled]="deleting">
              <mat-icon>delete</mat-icon>
-             DELETE
+             STOP REMOTE RUNNER
            </button>
         </mat-card-actions>
       </mat-card>
     </div>
 
     <div *ngIf="!run && !error" style="text-align: center; padding: 50px;">
-      Loading run details...
+      Loading remote runner details...
     </div>
 
     <div *ngIf="error" class="error-container">
       <mat-icon color="warn">error</mat-icon>
       <p>{{error}}</p>
-      <button mat-raised-button routerLink="/runs">Back to Runs</button>
+      <button mat-raised-button routerLink="/runs">Back to Local Instances</button>
     </div>
   `,
   styles: [`
@@ -150,11 +150,9 @@ import { ModelService, RunStatus } from '../../services/model.service';
     }
     .accepted { background-color: #e0e0e0; }
     .starting { background-color: #bbdefb; }
-    .ready { background-color: #c8e6c9; }
-    .running { background-color: #fff9c4; color: #f57f17; }
-    .completed { background-color: #a5d6a7; color: #1b5e20; }
-    .failed { background-color: #ffcdd2; color: #b71c1c; }
-    .canceled { background-color: #ffccbc; color: #e64a19; }
+    .locally-ready { background-color: #c8e6c9; }
+    .locally-stopped { background-color: #ffccbc; color: #e64a19; }
+    .locally-failed { background-color: #ffcdd2; color: #b71c1c; }
     .error-container {
       text-align: center;
       padding: 50px;
@@ -183,7 +181,7 @@ export class RunDetailComponent implements OnInit {
         next: (run) => this.run = run,
         error: (err) => {
           console.error('Error loading run', err);
-          this.error = 'Failed to load run details. It may not exist.';
+          this.error = 'Failed to load remote runner details. It may not exist.';
         }
       });
     }
@@ -197,7 +195,7 @@ export class RunDetailComponent implements OnInit {
     if (!this.run || this.deleting) {
       return;
     }
-    if (!window.confirm(`Delete run '${this.run.runId}'?`)) {
+    if (!window.confirm(`Stop remote runner '${this.run.runId}'? This does not cancel the coordinated run.`)) {
       return;
     }
 
@@ -208,8 +206,8 @@ export class RunDetailComponent implements OnInit {
         this.router.navigate(['/runs']);
       },
       error: (err) => {
-        console.error('Error deleting run', err);
-        this.error = 'Failed to delete run.';
+        console.error('Error stopping remote runner', err);
+        this.error = 'Failed to stop remote runner.';
       },
       complete: () => {
         this.deleting = false;

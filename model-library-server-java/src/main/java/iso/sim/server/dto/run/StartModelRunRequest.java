@@ -27,22 +27,26 @@ public class StartModelRunRequest {
     private final JsonNode initializationParameters;
     private final KafkaConfigurationDto kafka;
     private final SimulationContextDto simulation;
+    private final CoordinatorHelperCallbackConfigurationDto coordinatorHelper;
 
     @JsonCreator
     public StartModelRunRequest(
         @JsonProperty("runId") String runId,
         @JsonProperty("initializationParameters") JsonNode initializationParameters,
         @JsonProperty("kafka") KafkaConfigurationDto kafka,
-        @JsonProperty("simulation") SimulationContextDto simulation
+        @JsonProperty("simulation") SimulationContextDto simulation,
+        @JsonProperty("coordinatorHelper") CoordinatorHelperCallbackConfigurationDto coordinatorHelper
     ) {
         this.runId = runId;
         this.initializationParameters = initializationParameters;
         this.kafka = kafka;
         this.simulation = simulation;
+        this.coordinatorHelper = coordinatorHelper;
     }
 
     public String getRunId() { return runId; }
     public JsonNode getInitializationParameters() { return initializationParameters; }
     public KafkaConfigurationDto getKafka() { return kafka; }
     public SimulationContextDto getSimulation() { return simulation; }
+    public CoordinatorHelperCallbackConfigurationDto getCoordinatorHelper() { return coordinatorHelper; }
 }

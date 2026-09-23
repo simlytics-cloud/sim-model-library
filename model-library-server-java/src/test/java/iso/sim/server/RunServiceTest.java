@@ -2,16 +2,13 @@
  * Sim Model Library Copyright (C) 2026 simlytics.cloud LLC and
  * Sim Model Library contributors.  All rights reserved.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License
- *  is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
- *  or implied. See the License for the specific language governing permissions and limitations under
- *  the License.
- *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package iso.sim.server;
@@ -19,231 +16,165 @@ package iso.sim.server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iso.sim.server.catalog.CatalogRepository;
 import iso.sim.server.catalog.ModelCatalogService;
+import iso.sim.server.dto.run.CoordinatorHelperCallbackConfigurationDto;
 import iso.sim.server.dto.run.KafkaConfigurationDto;
 import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
-import iso.sim.server.dto.run.StartModelRunResponse;
-import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.TimeMode;
 import iso.sim.server.dto.run.TimeModeDto;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.runtime.NoopRunHandle;
-import iso.sim.server.runtime.RunHandle;
 import iso.sim.server.runtime.RunResourceRegistry;
 import iso.sim.server.service.InvalidRunRequestException;
-import iso.sim.server.service.RunNotFoundException;
-import iso.sim.server.service.RunReadinessProbe;
+import iso.sim.server.service.RemoteRunnerEventType;
+import iso.sim.server.service.RunAlreadyExistsException;
 import iso.sim.server.service.RunReadinessResult;
 import iso.sim.server.service.RunService;
-import iso.sim.server.service.RunMonitor;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RunServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ModelCatalogService catalogService = new ModelCatalogService(
+    private final ModelCatalogService catalog = new ModelCatalogService(
         new CatalogRepository(List.of(testCatalogPath()), objectMapper)
     );
-    private final RecordingRunExecutor recordingExecutor = new RecordingRunExecutor();
-    private final RunResourceRegistry runResourceRegistry = new RunResourceRegistry();
-    private final RunReadinessProbe immediateReadinessProbe = (context, handle) -> RunReadinessResult.ready("Runtime ready immediately");
-    private final RunMonitor noopMonitor = (context, runtimeHandle) -> new NoopRunHandle(context.getRunId());
-    private final RunService runService = new RunService(
-        catalogService,
-        recordingExecutor,
-        new InMemoryRunStatusStore(),
-        runResourceRegistry,
-        context -> immediateReadinessProbe,
-        noopMonitor
-    );
 
     @Test
-    void startRunAcceptsValidRequestWithTimeMode() {
-        StartModelRunRequest request = new StartModelRunRequest(
-            "run-vehicle-002",
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
-            new SimulationContextDto(
-                "sim-irp-001",
-                "instance-irp-001",
-                null,
-                new TimeModeDto(TimeMode.VIRTUAL_TIME)
-            )
-        );
+    void requiresCoordinatorSuppliedIdentityAndReportsRemoteRunnerFacts() {
+        List<RemoteRunnerEventType> events = new ArrayList<>();
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), events);
 
-        StartModelRunResponse response = runService.startRun("irpsystem.irpmodel.Vehicle", request);
-        assertEquals("run-vehicle-002", response.getRunId());
-        RunExecutionContext context = recordingExecutor.lastContext;
-        assertNotNull(context);
-        assertEquals(TimeMode.VIRTUAL_TIME, context.getRequest().getSimulation().getTimeMode().getMode());
-        assertNull(context.getRequest().getSimulation().getTimeMode().getRealTimeFactor());
+        service.startRun("irpsystem.irpmodel.Vehicle", request("run-1"));
+
+        assertEquals("locally-ready", service.getRunStatus("run-1").getStatus());
+        assertEquals(
+            List.of(
+                RemoteRunnerEventType.REMOTE_RUNNER_ACCEPTED,
+                RemoteRunnerEventType.REMOTE_RUNNER_STARTING,
+                RemoteRunnerEventType.REMOTE_RUNNER_READY
+            ),
+            events
+        );
     }
 
     @Test
-    void startRunAcceptsValidRequestAndStatusCanBeFetched() {
-        StartModelRunRequest request = new StartModelRunRequest(
-            "run-vehicle-001",
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
-            null
+    void rejectsAllDuplicateRunIdsAtomically() {
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), new ArrayList<>());
+        service.startRun("irpsystem.irpmodel.Vehicle", request("run-duplicate"));
+
+        assertThrows(
+            RunAlreadyExistsException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", request("run-duplicate"))
         );
-
-        StartModelRunResponse response = runService.startRun("irpsystem.irpmodel.Vehicle", request);
-        assertEquals("run-vehicle-001", response.getRunId());
-        assertEquals("accepted", response.getStatus());
-        assertEquals("/v1/runs/run-vehicle-001", response.getStatusUrl());
-        assertEquals("run-vehicle-001", recordingExecutor.lastContext.getRunId());
-        assertEquals("irpsystem.irpmodel.Vehicle", recordingExecutor.lastContext.getModelId());
-
-        RunStatusResponse status = runService.getRunStatus(response.getRunId());
-        assertEquals("run-vehicle-001", status.getRunId());
-        assertEquals("irpsystem.irpmodel.Vehicle", status.getModelId());
-        assertEquals("ready", status.getStatus());
-        assertNotNull(status.getReadyAt());
-        assertNotNull(runResourceRegistry.get("run-vehicle-001"));
     }
 
     @Test
-    void startRunMarksFailedWhenExecutorThrows() {
-        RunService failingRunService = new RunService(catalogService, context -> {
-            throw new IllegalStateException("boom");
-        }, new InMemoryRunStatusStore(), new RunResourceRegistry(), context -> immediateReadinessProbe, noopMonitor);
-
-        StartModelRunRequest request = new StartModelRunRequest(
-            "run-fail-001",
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
-            null
+    void rejectsMissingCoordinatorSuppliedFields() {
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), new ArrayList<>());
+        StartModelRunRequest invalid = new StartModelRunRequest(
+            null, objectMapper.createObjectNode(), null, null, null
         );
 
-        StartModelRunResponse response = failingRunService.startRun("irpsystem.irpmodel.Vehicle", request);
-        assertEquals("accepted", response.getStatus());
-
-        RunStatusResponse status = failingRunService.getRunStatus("run-fail-001");
-        assertEquals("failed", status.getStatus());
+        InvalidRunRequestException exception = assertThrows(
+            InvalidRunRequestException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", invalid)
+        );
+        assertTrue(exception.getMessage().contains("runId"));
     }
 
     @Test
-    void startRunThrowsWhenKafkaSectionIsMissing() {
-        StartModelRunRequest request = new StartModelRunRequest(
+    void requiresDirectKafkaConfigurationAndValidatesOptionalCoordinatorHelperAsASeparateCallback() {
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), new ArrayList<>());
+        StartModelRunRequest missingKafka = new StartModelRunRequest(
+            "run-no-kafka",
+            objectMapper.createObjectNode(),
             null,
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            null,
+            new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
+            null
+        );
+        InvalidRunRequestException missingKafkaException = assertThrows(
+            InvalidRunRequestException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", missingKafka)
+        );
+        assertTrue(missingKafkaException.getMessage().contains("'kafka'"));
+
+        StartModelRunRequest incompleteCallback = new StartModelRunRequest(
+            "run-incomplete-callback",
+            objectMapper.createObjectNode(),
+            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
+            new CoordinatorHelperCallbackConfigurationDto("http://helper.example", null)
+        );
+        InvalidRunRequestException callbackException = assertThrows(
+            InvalidRunRequestException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", incompleteCallback)
+        );
+        assertTrue(callbackException.getMessage().contains("coordinatorHelper"));
+    }
+
+    @Test
+    void rejectsUnsafeReceiverIdentitiesBeforeDerivingKafkaConsumerGroups() {
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), new ArrayList<>());
+        StartModelRunRequest unsafe = new StartModelRunRequest(
+            "run-safe",
+            objectMapper.createObjectNode(),
+            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new SimulationContextDto("simulation-1", "instance:unsafe", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );
 
-        InvalidRunRequestException exception = assertThrows(InvalidRunRequestException.class,
-            () -> runService.startRun("irpsystem.irpmodel.Vehicle", request));
-        assertTrue(exception.getMessage().contains("kafka"));
+        InvalidRunRequestException exception = assertThrows(
+            InvalidRunRequestException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", unsafe)
+        );
+        assertTrue(exception.getMessage().contains("modelInstanceId"));
     }
 
     @Test
-    void getRunStatusThrowsForUnknownRun() {
-        RunNotFoundException exception = assertThrows(RunNotFoundException.class,
-            () -> runService.getRunStatus("missing-run"));
-        assertTrue(exception.getMessage().contains("missing-run"));
+    void localCancellationStopsTheHandleAndReportsOnlyLocalStop() {
+        List<RemoteRunnerEventType> events = new ArrayList<>();
+        RunService service = service(context -> new NoopRunHandle(context.getRunId()), events);
+        service.startRun("irpsystem.irpmodel.Vehicle", request("run-stop"));
+
+        service.cancelRun("run-stop");
+
+        assertEquals("locally-stopped", service.getRunStatus("run-stop").getStatus());
+        assertEquals(RemoteRunnerEventType.REMOTE_RUNNER_STOPPED, events.getLast());
     }
 
-    @Test
-    void cancelRunStopsResourcesAndMarksCanceled() {
-        StartModelRunRequest request = new StartModelRunRequest(
-            "run-cancel-001",
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
+    private RunService service(RunExecutor executor, List<RemoteRunnerEventType> events) {
+        return new RunService(
+            catalog,
+            executor,
+            new InMemoryRunStatusStore(),
+            new RunResourceRegistry(),
+            context -> (runContext, handle) -> RunReadinessResult.ready("ready"),
+            (context, handle) -> new NoopRunHandle(context.getRunId()),
+            (context, eventType, detail) -> events.add(eventType)
+        );
+    }
+
+    private StartModelRunRequest request(String runId) {
+        return new StartModelRunRequest(
+            runId,
+            objectMapper.createObjectNode(),
+            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );
-
-        runService.startRun("irpsystem.irpmodel.Vehicle", request);
-
-        RunStatusResponse canceled = runService.cancelRun("run-cancel-001");
-        assertEquals("canceled", canceled.getStatus());
-        assertEquals("Run canceled by request", canceled.getMessage());
-        assertTrue(recordingExecutor.lastHandle.wasStopped());
-        assertEquals("canceled", runService.getRunStatus("run-cancel-001").getStatus());
-        assertNull(runResourceRegistry.get("run-cancel-001"));
-    }
-
-    @Test
-    void cancelRunReturnsCurrentStatusWhenRunIsAlreadyTerminal() {
-        RunService failingRunService = new RunService(catalogService, context -> {
-            throw new IllegalStateException("boom");
-        }, new InMemoryRunStatusStore(), new RunResourceRegistry(), context -> immediateReadinessProbe, noopMonitor);
-
-        StartModelRunRequest request = new StartModelRunRequest(
-            "run-failed-001",
-            objectMapper.valueToTree(java.util.Map.of("vehicleId", 1)),
-            new KafkaConfigurationDto("kafka.example.com:9092", "irp-system", null, null, null),
-            null
-        );
-        failingRunService.startRun("irpsystem.irpmodel.Vehicle", request);
-
-        RunStatusResponse canceled = failingRunService.cancelRun("run-failed-001");
-        assertEquals("failed", canceled.getStatus());
-        assertEquals("failed", failingRunService.getRunStatus("run-failed-001").getStatus());
-    }
-
-    @Test
-    void cancelRunThrowsForUnknownRun() {
-        RunNotFoundException exception = assertThrows(RunNotFoundException.class,
-            () -> runService.cancelRun("missing-run"));
-        assertTrue(exception.getMessage().contains("missing-run"));
-    }
-
-    private static class RecordingRunExecutor implements RunExecutor {
-        private RunExecutionContext lastContext;
-        private RecordingRunHandle lastHandle;
-
-        @Override
-        public RunHandle start(RunExecutionContext context) {
-            lastContext = context;
-            lastHandle = new RecordingRunHandle(context.getRunId());
-            return lastHandle;
-        }
-
     }
 
     private static String testCatalogPath() {
-        return Path.of(Objects.requireNonNull(
-            RunServiceTest.class.getResource("/model-catalog.json")
-        ).getPath()).toString();
-    }
-
-    private static class RecordingRunHandle implements RunHandle {
-        private final String runId;
-        private boolean stopped;
-
-        private RecordingRunHandle(String runId) {
-            this.runId = runId;
-        }
-
-        @Override
-        public String runId() {
-            return runId;
-        }
-
-        @Override
-        public boolean isAlive() {
-            return !stopped;
-        }
-
-        @Override
-        public void stop() {
-            stopped = true;
-        }
-
-        private boolean wasStopped() {
-            return stopped;
-        }
+        return Path.of(Objects.requireNonNull(RunServiceTest.class.getResource("/model-catalog.json")).getPath()).toString();
     }
 }

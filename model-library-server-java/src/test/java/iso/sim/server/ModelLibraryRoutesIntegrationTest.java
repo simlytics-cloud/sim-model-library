@@ -132,11 +132,14 @@ class ModelLibraryRoutesIntegrationTest {
             assertEquals(200, statusResponse.statusCode());
             RunStatusResponse parsedStatus = objectMapper.readValue(statusResponse.body(), RunStatusResponse.class);
             assertEquals(runResponse.getRunId(), parsedStatus.getRunId());
-            assertEquals("ready", parsedStatus.getStatus());
+            assertEquals("locally-ready", parsedStatus.getStatus());
 
             runService.getRunStatusStore().save(new RunStatusResponse(
                 parsedStatus.getRunId(),
                 parsedStatus.getModelId(),
+                parsedStatus.getSimulationId(),
+                parsedStatus.getModelInstanceId(),
+                parsedStatus.getCoordinatorId(),
                 parsedStatus.getStatus(),
                 parsedStatus.getAcceptedAt(),
                 parsedStatus.getReadyAt(),
@@ -174,7 +177,7 @@ class ModelLibraryRoutesIntegrationTest {
                 .build());
             assertEquals(200, cancelRunResponse.statusCode());
             JsonNode canceledRun = objectMapper.readTree(cancelRunResponse.body());
-            assertEquals("canceled", canceledRun.path("status").asText());
+            assertEquals("locally-stopped", canceledRun.path("status").asText());
 
             HttpResponse<String> cancelRunAgainResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + runResponse.getStatusUrl()))
@@ -182,7 +185,7 @@ class ModelLibraryRoutesIntegrationTest {
                 .build());
             assertEquals(200, cancelRunAgainResponse.statusCode());
             JsonNode canceledRunAgain = objectMapper.readTree(cancelRunAgainResponse.body());
-            assertEquals("canceled", canceledRunAgain.path("status").asText());
+            assertEquals("locally-stopped", canceledRunAgain.path("status").asText());
 
             HttpResponse<String> kafkaDefaultsResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/run-config/defaults"))
@@ -193,6 +196,12 @@ class ModelLibraryRoutesIntegrationTest {
             assertEquals("localhost:9092", kafkaDefaults.path("bootstrapServers").asText());
             assertEquals("devs-sim", kafkaDefaults.path("topic").asText());
             assertTrue(kafkaDefaults.path("consumerGroup").isMissingNode());
+
+            HttpResponse<String> removedRunnerRouteResponse = send(HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/v1/runner/runs"))
+                .GET()
+                .build());
+            assertEquals(404, removedRunnerRouteResponse.statusCode());
 
             HttpResponse<String> missingModelResponse = send(HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/v1/models/missing.model"))

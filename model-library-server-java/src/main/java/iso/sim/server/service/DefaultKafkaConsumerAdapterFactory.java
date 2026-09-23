@@ -23,6 +23,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.header.Header;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -51,12 +52,13 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
         logger.info(() -> "Subscribed Kafka consumer for runId=" + runId + " to topic=" + topic);
         return new KafkaConsumerAdapter() {
             @Override
-            public List<String> poll(Duration timeout) {
+            public List<KafkaConsumerRecord> poll(Duration timeout) {
                 ConsumerRecords<String, String> records = consumer.poll(timeout);
-                List<String> values = new ArrayList<>();
+                List<KafkaConsumerRecord> values = new ArrayList<>();
                 for (ConsumerRecord<String, String> record : records) {
-                    values.add(record.value());
+                    values.add(toKafkaConsumerRecord(record));
                 }
+
                 return values;
             }
 
@@ -65,6 +67,14 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
                 consumer.close();
             }
         };
+    }
+
+    static KafkaConsumerRecord toKafkaConsumerRecord(ConsumerRecord<String, String> record) {
+        Map<String, byte[]> headers = new java.util.LinkedHashMap<>();
+        for (Header header : record.headers()) {
+            headers.put(header.key(), header.value());
+        }
+        return new KafkaConsumerRecord(record.key(), record.value(), headers);
     }
 
     Properties buildConsumerProperties(KafkaConfigurationDto kafkaConfig, String consumerGroup) {

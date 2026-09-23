@@ -18,6 +18,7 @@ package iso.sim.server.service;
 
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
+import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.store.RunStatusStore;
 
 import java.time.Clock;
@@ -26,7 +27,7 @@ import java.util.Set;
 
 public class RunLifecycleService {
     private static final Set<String> VALID_STATUSES = Set.of(
-        "accepted", "starting", "ready", "running", "completed", "failed", "canceled"
+        "accepted", "starting", "locally-ready", "locally-stopped", "locally-failed"
     );
 
     private final RunStatusStore runStatusStore;
@@ -42,43 +43,49 @@ public class RunLifecycleService {
     }
 
     public RunStatusResponse markAccepted(String runId, String modelId, String message) {
-        return persist(runId, modelId, "accepted", now(), null, null, null, message, null);
+        return persist(runId, modelId, null, null, null, "accepted", now(), null, null, null, message, null);
+    }
+
+    public boolean markAccepted(RunExecutionContext context, String message) {
+        var simulation = context.getRequest().getSimulation();
+        return runStatusStore.saveIfAbsent(new RunStatusResponse(
+            context.getRunId(),
+            context.getModelId(),
+            simulation.getSimulationId(),
+            simulation.getModelInstanceId(),
+            simulation.getCoordinatorId(),
+            "accepted",
+            now(),
+            null,
+            null,
+            null,
+            message,
+            null
+        ));
     }
 
     public RunStatusResponse markStarting(String runId, String message) {
         RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "starting", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
+        return persist(runId, current.getModelId(), current.getSimulationId(), current.getModelInstanceId(), current.getCoordinatorId(), "starting", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
             current.getCompletedAt(), message, current.getCurrentSimulationTime());
     }
 
-    public RunStatusResponse markReady(String runId, String message) {
+    public RunStatusResponse markLocallyReady(String runId, String message) {
         RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "ready", current.getAcceptedAt(), now(), current.getStartedAt(),
+        return persist(runId, current.getModelId(), current.getSimulationId(), current.getModelInstanceId(), current.getCoordinatorId(), "locally-ready", current.getAcceptedAt(), now(), current.getStartedAt(),
             current.getCompletedAt(), message, current.getCurrentSimulationTime());
     }
 
-    public RunStatusResponse markRunning(String runId, String message) {
+    public RunStatusResponse markLocallyStopped(String runId, String message) {
         RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "running", current.getAcceptedAt(), current.getReadyAt(), now(),
-            current.getCompletedAt(), message, current.getCurrentSimulationTime());
-    }
-
-    public RunStatusResponse markCompleted(String runId, String message) {
-        RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "completed", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
+        return persist(runId, current.getModelId(), current.getSimulationId(), current.getModelInstanceId(), current.getCoordinatorId(), "locally-stopped", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
             now(), message, current.getCurrentSimulationTime());
     }
 
-    public RunStatusResponse markFailed(String runId, String message) {
+    public RunStatusResponse markLocallyFailed(String runId, String message) {
         RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "failed", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
-            current.getCompletedAt(), message, current.getCurrentSimulationTime());
-    }
-
-    public RunStatusResponse markCanceled(String runId, String message) {
-        RunStatusResponse current = requireCurrent(runId);
-        return persist(runId, current.getModelId(), "canceled", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
-            current.getCompletedAt(), message, current.getCurrentSimulationTime());
+        return persist(runId, current.getModelId(), current.getSimulationId(), current.getModelInstanceId(), current.getCoordinatorId(), "locally-failed", current.getAcceptedAt(), current.getReadyAt(), current.getStartedAt(),
+            now(), message, current.getCurrentSimulationTime());
     }
 
     private RunStatusResponse requireCurrent(String runId) {
@@ -92,6 +99,9 @@ public class RunLifecycleService {
     private RunStatusResponse persist(
         String runId,
         String modelId,
+        String simulationId,
+        String modelInstanceId,
+        String coordinatorId,
         String status,
         String acceptedAt,
         String readyAt,
@@ -104,6 +114,9 @@ public class RunLifecycleService {
         RunStatusResponse next = new RunStatusResponse(
             runId,
             modelId,
+            simulationId,
+            modelInstanceId,
+            coordinatorId,
             status,
             acceptedAt,
             readyAt,

@@ -24,6 +24,7 @@ import iso.sim.server.dto.run.KafkaDefaultsResponse;
 import iso.sim.server.dto.run.StartModelRunRequest;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.InvalidRunRequestException;
+import iso.sim.server.service.RunAlreadyExistsException;
 import iso.sim.server.service.RunNotFoundException;
 import iso.sim.server.service.RunService;
 import org.apache.pekko.http.javadsl.model.ContentTypes;
@@ -146,6 +147,8 @@ public class ModelLibraryRoutes extends AllDirectives {
                             return completeError(StatusCodes.NOT_FOUND, "MODEL_NOT_FOUND", "Model '" + modelId + "' was not found");
                         } catch (InvalidRunRequestException ex) {
                             return completeError(StatusCodes.BAD_REQUEST, "INVALID_RUN_REQUEST", ex.getMessage() == null ? "Invalid run request" : ex.getMessage());
+                        } catch (RunAlreadyExistsException ex) {
+                            return completeError(StatusCodes.CONFLICT, "RUN_ID_COLLISION", ex.getMessage());
                         } catch (IOException ex) {
                             return completeError(StatusCodes.BAD_REQUEST, "INVALID_RUN_REQUEST", "Invalid run request");
                         }

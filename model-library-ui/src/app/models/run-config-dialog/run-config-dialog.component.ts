@@ -39,11 +39,11 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
     MaterialDesignFrameworkModule
   ],
   template: `
-    <h2 mat-dialog-title>Configure Run: {{ data.model.name }}</h2>
+    <h2 mat-dialog-title>Configure Remote Model Runner: {{ data.model.name }}</h2>
     <mat-dialog-content>
       <form [formGroup]="runForm" class="run-form">
         <mat-form-field appearance="fill">
-          <mat-label>Run ID</mat-label>
+          <mat-label>Coordinator-provided Run ID</mat-label>
           <input matInput formControlName="runId" placeholder="e.g. run-001">
         </mat-form-field>
 
@@ -100,7 +100,7 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
           </div>
         </div>
 
-        <h3>Kafka Configuration</h3>
+        <h3>Kafka Transport</h3>
         <div formGroupName="kafka">
           <mat-form-field appearance="fill">
             <mat-label>Bootstrap Servers</mat-label>
@@ -123,7 +123,7 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancel</button>
-      <button mat-raised-button color="primary" [disabled]="!runForm.valid || !hasInitializationSchema" (click)="onRun()">Start Run</button>
+      <button mat-raised-button color="primary" [disabled]="!runForm.valid || !hasInitializationSchema" (click)="onRun()">Start Remote Runner</button>
     </mat-dialog-actions>
   `,
   styles: [`
@@ -171,20 +171,20 @@ export class RunConfigDialogComponent {
     );
     this.hasInitializationSchema = !!this.initializationSchema;
     this.runForm = this.fb.group({
-      runId: [`run-${Math.floor(Math.random() * 1000)}`, Validators.required],
+      runId: ['', Validators.required],
       initializationParameters: this.fb.group(defaultParams || {}),
       simulation: this.fb.group({
-        simulationId: [simulationId],
-        modelInstanceId: [modelInstanceId],
-        coordinatorId: [coordinatorId],
+        simulationId: [simulationId, Validators.required],
+        modelInstanceId: [modelInstanceId, Validators.required],
+        coordinatorId: [coordinatorId, Validators.required],
         timeMode: this.fb.group({
           mode: [defaultTimeMode.mode, Validators.required],
           realTimeFactor: [defaultTimeMode.realTimeFactor]
         })
       }),
       kafka: this.fb.group({
-        bootstrapServers: ['localhost:9092'],
-        topic: ['devs-sim'],
+        bootstrapServers: ['localhost:9092', Validators.required],
+        topic: ['devs-sim', Validators.required],
         securityProtocol: ['PLAINTEXT'],
         saslMechanism: ['']
       })

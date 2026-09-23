@@ -23,7 +23,7 @@ import iso.sim.server.store.RunStatusStore;
 import java.util.Set;
 
 public class RunTerminalCoordinator {
-    private static final Set<String> TERMINAL_STATUSES = Set.of("completed", "failed", "canceled");
+    private static final Set<String> TERMINAL_STATUSES = Set.of("locally-stopped", "locally-failed");
 
     private final RunLifecycleService runLifecycleService;
     private final RunStatusStore runStatusStore;
@@ -51,9 +51,9 @@ public class RunTerminalCoordinator {
         RunStatusResponse current = runStatusStore.get(runId);
         if (current != null && !TERMINAL_STATUSES.contains(current.getStatus())) {
             if (targetStatus == TerminalStatus.COMPLETED) {
-                runLifecycleService.markCompleted(runId, message);
+                runLifecycleService.markLocallyStopped(runId, message);
             } else {
-                runLifecycleService.markFailed(runId, message);
+                runLifecycleService.markLocallyFailed(runId, message);
             }
         }
 
@@ -61,10 +61,7 @@ public class RunTerminalCoordinator {
     }
 
     private void cleanupRunResources(String runId) {
-        try {
-            runResourceRegistry.stop(runId);
-        } catch (RuntimeException ignored) {
-        }
+        runResourceRegistry.stop(runId);
     }
 
     private enum TerminalStatus {

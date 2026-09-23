@@ -17,7 +17,10 @@
 package iso.sim.server.service;
 
 import iso.sim.server.dto.run.KafkaConfigurationDto;
+import iso.sim.server.dto.run.SimulationContextDto;
 import iso.sim.server.dto.run.StartModelRunRequest;
+import iso.sim.server.dto.run.TimeMode;
+import iso.sim.server.dto.run.TimeModeDto;
 import iso.sim.server.executor.RunExecutionContext;
 import iso.sim.server.executor.RunExecutor;
 import iso.sim.server.runtime.NoopRunHandle;
@@ -46,7 +49,7 @@ class RunLifecycleManagerTest {
 
         manager.startRun(context("run-1"));
 
-        assertEquals("ready", store.get("run-1").getStatus());
+        assertEquals("locally-ready", store.get("run-1").getStatus());
         assertNotNull(registry.get("run-1"));
     }
 
@@ -65,7 +68,7 @@ class RunLifecycleManagerTest {
 
         manager.startRun(context("run-2"));
 
-        assertEquals("failed", store.get("run-2").getStatus());
+        assertEquals("locally-failed", store.get("run-2").getStatus());
         assertNull(registry.get("run-2"));
     }
 
@@ -84,7 +87,7 @@ class RunLifecycleManagerTest {
 
         manager.startRun(context("run-3"));
 
-        assertEquals("failed", store.get("run-3").getStatus());
+        assertEquals("locally-failed", store.get("run-3").getStatus());
         assertEquals(1, handle.stopCount);
         assertNull(registry.get("run-3"));
     }
@@ -94,6 +97,7 @@ class RunLifecycleManagerTest {
             runId,
             null,
             new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );
         return new RunExecutionContext(runId, "model-1", request);

@@ -11,6 +11,7 @@
 
   <modules>
     <module>model-library-server-java</module>
+    <module>coordinator-helper</module>
     <module>model-library-ui</module>
   </modules>
 

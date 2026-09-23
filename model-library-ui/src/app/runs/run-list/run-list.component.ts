@@ -29,7 +29,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
   standalone: true,
   imports: [CommonModule, RouterLink, MatTableModule, MatButtonModule, MatIconModule],
   template: `
-    <h2>Model Runs</h2>
+    <h2>Remote Model Runners</h2>
     
     <table mat-table [dataSource]="runs" class="mat-elevation-z8">
       <ng-container matColumnDef="runId">
@@ -43,7 +43,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
       </ng-container>
 
       <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef> Status </th>
+        <th mat-header-cell *matHeaderCellDef> Runner Status </th>
         <td mat-cell *matCellDef="let run"> 
           <span [class]="'status-badge ' + run.status">{{run.status}}</span>
         </td>
@@ -72,7 +72,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
             color="warn"
             (click)="deleteRun(run)"
             [disabled]="deletingRunIds.has(run.runId)"
-            title="Delete Run">
+            title="Stop Remote Runner">
             <mat-icon>delete</mat-icon>
           </button>
         </td>
@@ -83,7 +83,7 @@ import { ModelService, RunStatus } from '../../services/model.service';
     </table>
     
     <div *ngIf="runs.length === 0" style="padding: 20px; text-align: center;">
-      No runs found.
+      No remote model runners found.
     </div>
   `,
   styles: [`
@@ -99,11 +99,9 @@ import { ModelService, RunStatus } from '../../services/model.service';
     }
     .accepted { background-color: #e0e0e0; }
     .starting { background-color: #bbdefb; }
-    .ready { background-color: #c8e6c9; }
-    .running { background-color: #fff9c4; color: #f57f17; }
-    .completed { background-color: #a5d6a7; color: #1b5e20; }
-    .failed { background-color: #ffcdd2; color: #b71c1c; }
-    .canceled { background-color: #ffccbc; color: #e64a19; }
+    .locally-ready { background-color: #c8e6c9; }
+    .locally-stopped { background-color: #ffccbc; color: #e64a19; }
+    .locally-failed { background-color: #ffcdd2; color: #b71c1c; }
   `]
 })
 export class RunListComponent implements OnInit, OnDestroy {
@@ -132,7 +130,7 @@ export class RunListComponent implements OnInit, OnDestroy {
     if (this.deletingRunIds.has(run.runId)) {
       return;
     }
-    if (!window.confirm(`Delete run '${run.runId}'?`)) {
+    if (!window.confirm(`Stop remote runner '${run.runId}'? This does not cancel the coordinated run.`)) {
       return;
     }
 
@@ -142,7 +140,7 @@ export class RunListComponent implements OnInit, OnDestroy {
         this.runs = this.runs.map(currentRun => currentRun.runId === updatedRun.runId ? updatedRun : currentRun);
       },
       error: (err) => {
-        console.error('Error deleting run', err);
+        console.error('Error stopping remote runner', err);
       },
       complete: () => {
         this.deletingRunIds.delete(run.runId);
