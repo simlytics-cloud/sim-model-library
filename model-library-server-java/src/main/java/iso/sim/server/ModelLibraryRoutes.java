@@ -21,6 +21,7 @@ import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.catalog.ModelNotFoundException;
 import iso.sim.server.dto.ErrorResponse;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
+import iso.sim.server.dto.run.KafkaSecurityProtocol;
 import iso.sim.server.dto.run.StartModelRunRequest;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.InvalidRunRequestException;
@@ -56,8 +57,8 @@ public class ModelLibraryRoutes extends AllDirectives {
             new KafkaDefaultsResponse(
                 "localhost:9092",
                 "devs-sim",
-                "PLAINTEXT",
-                ""
+                KafkaSecurityProtocol.PLAINTEXT,
+                null
             ),
             new ObjectMapper()
         );
@@ -70,8 +71,8 @@ public class ModelLibraryRoutes extends AllDirectives {
             new KafkaDefaultsResponse(
                 "localhost:9092",
                 "devs-sim",
-                "PLAINTEXT",
-                ""
+                KafkaSecurityProtocol.PLAINTEXT,
+                null
             ),
             new ObjectMapper()
         );

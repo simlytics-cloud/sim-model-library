@@ -26,6 +26,7 @@ import iso.sim.server.dto.catalog.ModelListResponse;
 import iso.sim.server.dto.catalog.ModelDto;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
+import iso.sim.server.dto.run.KafkaSecurityProtocol;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.StartModelRunResponse;
 import iso.sim.server.dto.run.TimeMode;
@@ -86,8 +87,8 @@ class ModelLibraryRoutesIntegrationTest {
             new KafkaDefaultsResponse(
                 "localhost:9092",
                 "devs-sim",
-                "PLAINTEXT",
-                ""
+                KafkaSecurityProtocol.PLAINTEXT,
+                null
             ),
             objectMapper
         ).routes();

@@ -24,24 +24,25 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class KafkaDefaultsResponse {
     private final String bootstrapServers;
     private final String topic;
-    private final String securityProtocol;
-    private final String saslMechanism;
+    private final KafkaSecurityProtocol securityProtocol;
+    private final KafkaSaslMechanism saslMechanism;
 
     @JsonCreator
     public KafkaDefaultsResponse(
         @JsonProperty("bootstrapServers") String bootstrapServers,
         @JsonProperty("topic") String topic,
-        @JsonProperty("securityProtocol") String securityProtocol,
-        @JsonProperty("saslMechanism") String saslMechanism
+        @JsonProperty("securityProtocol") KafkaSecurityProtocol securityProtocol,
+        @JsonProperty("saslMechanism") KafkaSaslMechanism saslMechanism
     ) {
         this.bootstrapServers = bootstrapServers;
         this.topic = topic;
         this.securityProtocol = securityProtocol;
         this.saslMechanism = saslMechanism;
+        KafkaConfigurationDto.validateSaslConfiguration(securityProtocol, saslMechanism);
     }
 
     public String getBootstrapServers() { return bootstrapServers; }
     public String getTopic() { return topic; }
-    public String getSecurityProtocol() { return securityProtocol; }
-    public String getSaslMechanism() { return saslMechanism; }
+    public KafkaSecurityProtocol getSecurityProtocol() { return securityProtocol; }
+    public KafkaSaslMechanism getSaslMechanism() { return saslMechanism; }
 }

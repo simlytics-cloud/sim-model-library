@@ -22,7 +22,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { KafkaDefaults, ModelDetail, ModelService, TimeModeConfig } from '../../services/model.service';
+import {
+  KafkaDefaults,
+  KafkaSaslMechanism,
+  KafkaSecurityProtocol,
+  ModelDetail,
+  ModelService,
+  TimeModeConfig
+} from '../../services/model.service';
 import { MaterialDesignFrameworkModule } from '@ajsf/material';
 
 @Component({
@@ -112,11 +119,20 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
           </mat-form-field>
           <mat-form-field appearance="fill">
             <mat-label>Security Protocol</mat-label>
-            <input matInput formControlName="securityProtocol">
+            <mat-select formControlName="securityProtocol">
+              <mat-option *ngFor="let protocol of securityProtocols" [value]="protocol">{{ protocol }}</mat-option>
+            </mat-select>
           </mat-form-field>
           <mat-form-field appearance="fill">
             <mat-label>SASL Mechanism</mat-label>
-            <input matInput formControlName="saslMechanism">
+            <mat-select formControlName="saslMechanism">
+              <mat-option [value]="null">None</mat-option>
+              <mat-option *ngFor="let mechanism of saslMechanisms" [value]="mechanism">{{ mechanism }}</mat-option>
+            </mat-select>
+            <mat-hint *ngIf="!isSaslProtocol()">Only used with a SASL security protocol.</mat-hint>
+            <mat-error *ngIf="runForm.get('kafka.saslMechanism')?.hasError('required')">
+              A SASL mechanism is required for SASL security protocols.
+            </mat-error>
           </mat-form-field>
         </div>
       </form>
@@ -149,6 +165,8 @@ import { MaterialDesignFrameworkModule } from '@ajsf/material';
   `]
 })
 export class RunConfigDialogComponent {
+  readonly securityProtocols: KafkaSecurityProtocol[] = ['PLAINTEXT', 'SSL', 'SASL_PLAINTEXT', 'SASL_SSL'];
+  readonly saslMechanisms: KafkaSaslMechanism[] = ['GSSAPI', 'PLAIN', 'SCRAM-SHA-256', 'SCRAM-SHA-512', 'OAUTHBEARER'];
   runForm: FormGroup;
   hasInitializationSchema: boolean;
   initializationSchema: any;
@@ -186,7 +204,7 @@ export class RunConfigDialogComponent {
         bootstrapServers: ['localhost:9092', Validators.required],
         topic: ['devs-sim', Validators.required],
         securityProtocol: ['PLAINTEXT'],
-        saslMechanism: ['']
+        saslMechanism: [null]
       })
     });
 
@@ -200,7 +218,11 @@ export class RunConfigDialogComponent {
     this.runForm.get('simulation.timeMode.mode')?.valueChanges.subscribe(() => {
       this.updateRealTimeFactorValidation();
     });
+    this.runForm.get('kafka.securityProtocol')?.valueChanges.subscribe(() => {
+      this.updateSaslMechanismValidation();
+    });
     this.updateRealTimeFactorValidation();
+    this.updateSaslMechanismValidation();
   }
 
   private applyKafkaDefaults(defaults: KafkaDefaults): void {
@@ -212,8 +234,8 @@ export class RunConfigDialogComponent {
       kafka: {
         bootstrapServers: this.renderTemplate(defaults.bootstrapServers, simulationId, coordinatorId, modelInstanceId),
         topic: this.renderTemplate(defaults.topic, simulationId, coordinatorId, modelInstanceId),
-        securityProtocol: this.renderTemplate(defaults.securityProtocol, simulationId, coordinatorId, modelInstanceId),
-        saslMechanism: this.renderTemplate(defaults.saslMechanism, simulationId, coordinatorId, modelInstanceId)
+        securityProtocol: defaults.securityProtocol,
+        saslMechanism: defaults.saslMechanism ?? null
       }
     });
   }
@@ -249,6 +271,11 @@ export class RunConfigDialogComponent {
     return this.runForm.get('simulation.timeMode.mode')?.value === 'scaled-real-time';
   }
 
+  isSaslProtocol(): boolean {
+    const protocol = this.runForm.get('kafka.securityProtocol')?.value as KafkaSecurityProtocol | null;
+    return protocol === 'SASL_PLAINTEXT' || protocol === 'SASL_SSL';
+  }
+
   private updateRealTimeFactorValidation(): void {
     const realTimeFactorControl = this.runForm.get('simulation.timeMode.realTimeFactor');
     if (!realTimeFactorControl) {
@@ -262,6 +289,24 @@ export class RunConfigDialogComponent {
     }
 
     realTimeFactorControl.updateValueAndValidity();
+  }
+
+  private updateSaslMechanismValidation(): void {
+    const saslMechanismControl = this.runForm.get('kafka.saslMechanism');
+    if (!saslMechanismControl) {
+      return;
+    }
+
+    if (this.isSaslProtocol()) {
+      saslMechanismControl.enable({ emitEvent: false });
+      saslMechanismControl.setValidators(Validators.required);
+    } else {
+      saslMechanismControl.setValue(null);
+      saslMechanismControl.clearValidators();
+      saslMechanismControl.disable({ emitEvent: false });
+    }
+
+    saslMechanismControl.updateValueAndValidity();
   }
 
   private buildInitializationSchema(initializationSchema: any, messageSchemas?: { [key: string]: any }): any {

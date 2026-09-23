@@ -111,9 +111,30 @@ components:
       properties:
         bootstrapServers: { type: string }
         topic: { type: string }
-        securityProtocol: { type: string }
-        saslMechanism: { type: string }
+        securityProtocol: { $ref: '#/components/schemas/KafkaSecurityProtocol' }
+        saslMechanism:
+          oneOf:
+            - { $ref: '#/components/schemas/KafkaSaslMechanism' }
+            - { type: 'null' }
         properties: { type: object, additionalProperties: { type: string } }
+      allOf:
+        - if:
+            required: [securityProtocol]
+            properties:
+              securityProtocol: { enum: [SASL_PLAINTEXT, SASL_SSL] }
+          then:
+            required: [saslMechanism]
+            properties:
+              saslMechanism: { $ref: '#/components/schemas/KafkaSaslMechanism' }
+          else:
+            properties:
+              saslMechanism: { type: 'null' }
+    KafkaSecurityProtocol:
+      type: string
+      enum: [PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL]
+    KafkaSaslMechanism:
+      type: string
+      enum: [GSSAPI, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER]
     TimeMode:
       type: object
       required: [mode]

@@ -320,15 +320,32 @@ components:
             dedicated per-run topics.
           example: simulation.run.001
         securityProtocol:
-          type: string
+          $ref: '#/components/schemas/KafkaSecurityProtocol'
           example: SASL_SSL
         saslMechanism:
-          type: string
+          oneOf:
+            - $ref: '#/components/schemas/KafkaSaslMechanism'
+            - type: 'null'
           example: SCRAM-SHA-512
         properties:
           type: object
           additionalProperties:
             type: string
+      allOf:
+        - if:
+            required: [securityProtocol]
+            properties:
+              securityProtocol:
+                enum: [SASL_PLAINTEXT, SASL_SSL]
+          then:
+            required: [saslMechanism]
+            properties:
+              saslMechanism:
+                $ref: '#/components/schemas/KafkaSaslMechanism'
+          else:
+            properties:
+              saslMechanism:
+                type: 'null'
 
     SimulationContext:
       type: object
@@ -478,11 +495,36 @@ components:
           type: string
           example: devs-sim
         securityProtocol:
-          type: string
+          $ref: '#/components/schemas/KafkaSecurityProtocol'
           example: PLAINTEXT
         saslMechanism:
-          type: string
-          example: ''
+          oneOf:
+            - $ref: '#/components/schemas/KafkaSaslMechanism'
+            - type: 'null'
+          example: null
+      allOf:
+        - if:
+            required: [securityProtocol]
+            properties:
+              securityProtocol:
+                enum: [SASL_PLAINTEXT, SASL_SSL]
+          then:
+            required: [saslMechanism]
+            properties:
+              saslMechanism:
+                $ref: '#/components/schemas/KafkaSaslMechanism'
+          else:
+            properties:
+              saslMechanism:
+                type: 'null'
+
+    KafkaSecurityProtocol:
+      type: string
+      enum: [PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL]
+
+    KafkaSaslMechanism:
+      type: string
+      enum: [GSSAPI, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER]
 
     CurrentSimulationTime:
       type: object

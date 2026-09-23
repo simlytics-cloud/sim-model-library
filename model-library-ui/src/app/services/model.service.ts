@@ -44,6 +44,8 @@ export interface Parameter {
 }
 
 export type TimeMode = 'real-time' | 'scaled-real-time' | 'virtual-time';
+export type KafkaSecurityProtocol = 'PLAINTEXT' | 'SSL' | 'SASL_PLAINTEXT' | 'SASL_SSL';
+export type KafkaSaslMechanism = 'GSSAPI' | 'PLAIN' | 'SCRAM-SHA-256' | 'SCRAM-SHA-512' | 'OAUTHBEARER';
 
 export interface TimeModeConfig {
   mode: TimeMode;
@@ -86,15 +88,15 @@ export interface RunStatus {
 export interface KafkaDefaults {
   bootstrapServers: string;
   topic: string;
-  securityProtocol: string;
-  saslMechanism: string;
+  securityProtocol: KafkaSecurityProtocol;
+  saslMechanism?: KafkaSaslMechanism | null;
 }
 
 export interface KafkaTransport {
   bootstrapServers: string;
   topic: string;
-  securityProtocol?: string;
-  saslMechanism?: string;
+  securityProtocol?: KafkaSecurityProtocol;
+  saslMechanism?: KafkaSaslMechanism | null;
   properties?: { [key: string]: string };
 }
 

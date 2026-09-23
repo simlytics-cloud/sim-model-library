@@ -5,6 +5,7 @@ import iso.sim.coordinator.helper.dto.CoordinatedRunStatusResponse;
 import iso.sim.coordinator.helper.dto.CoordinatorEventReport;
 import iso.sim.coordinator.helper.dto.CreateCoordinatedRunRequest;
 import iso.sim.coordinator.helper.dto.KafkaConfigurationDto;
+import iso.sim.coordinator.helper.dto.KafkaSecurityProtocol;
 import iso.sim.coordinator.helper.dto.RegisterRemoteRunnerRequest;
 import iso.sim.coordinator.helper.dto.RemoteRunnerEventReport;
 import iso.sim.coordinator.helper.dto.TimeModeConfigurationDto;
@@ -128,7 +129,7 @@ class CoordinatedRunServiceTest {
             instanceId,
             "https://model-library.example",
             objectMapper.createObjectNode().put("example", true),
-            new KafkaConfigurationDto("kafka.example:9092", "simulation-topic", "PLAINTEXT", null, null),
+            new KafkaConfigurationDto("kafka.example:9092", "simulation-topic", KafkaSecurityProtocol.PLAINTEXT, null, null),
             new TimeModeConfigurationDto("virtual-time", null),
             "callback-token"
         );

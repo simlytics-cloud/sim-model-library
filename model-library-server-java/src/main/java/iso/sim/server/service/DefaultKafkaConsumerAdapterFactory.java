@@ -86,11 +86,11 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
-        if (kafkaConfig.getSecurityProtocol() != null && !kafkaConfig.getSecurityProtocol().isBlank()) {
-            properties.put("security.protocol", kafkaConfig.getSecurityProtocol());
+        if (kafkaConfig.getSecurityProtocol() != null) {
+            properties.put("security.protocol", kafkaConfig.getSecurityProtocol().getValue());
         }
-        if (kafkaConfig.getSaslMechanism() != null && !kafkaConfig.getSaslMechanism().isBlank()) {
-            properties.put("sasl.mechanism", kafkaConfig.getSaslMechanism());
+        if (kafkaConfig.getSaslMechanism() != null) {
+            properties.put("sasl.mechanism", kafkaConfig.getSaslMechanism().getValue());
         }
         if (kafkaConfig.getProperties() != null) {
             for (Map.Entry<String, String> entry : kafkaConfig.getProperties().entrySet()) {
