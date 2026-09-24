@@ -18,61 +18,36 @@ package iso.sim.server.service;
 
 import com.typesafe.config.Config;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
-import iso.sim.server.dto.run.KafkaConfigurationDto;
-import iso.sim.server.dto.run.KafkaSaslMechanism;
-import iso.sim.server.dto.run.KafkaSecurityProtocol;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class KafkaDefaultsConfig {
-    private final String bootstrapServers;
     private final String topic;
-    private final KafkaSecurityProtocol securityProtocol;
-    private final KafkaSaslMechanism saslMechanism;
+    private final Map<String, String> properties;
 
-    public KafkaDefaultsConfig(
-        String bootstrapServers,
-        String topic,
-        KafkaSecurityProtocol securityProtocol,
-        KafkaSaslMechanism saslMechanism
-    ) {
-        this.bootstrapServers = bootstrapServers;
+    public KafkaDefaultsConfig(String topic, Map<String, String> properties) {
         this.topic = topic;
-        this.securityProtocol = securityProtocol;
-        this.saslMechanism = saslMechanism;
-        KafkaConfigurationDto.validateSaslConfiguration(securityProtocol, saslMechanism);
+        this.properties = properties;
     }
 
     public static KafkaDefaultsConfig from(Config config) {
+        String propertiesPath = "model.library.run-config.kafka-defaults.properties";
+        Map<String, String> properties = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : config.getConfig(propertiesPath).root().unwrapped().entrySet()) {
+            Object value = entry.getValue();
+            if (!(value instanceof String stringValue)) {
+                throw new IllegalArgumentException("Kafka default property '" + entry.getKey() + "' must be a string");
+            }
+            properties.put(entry.getKey(), stringValue);
+        }
         return new KafkaDefaultsConfig(
-            config.getString("model.library.run-config.kafka-defaults.bootstrap-servers"),
             config.getString("model.library.run-config.kafka-defaults.topic"),
-            parseSecurityProtocol(config, "model.library.run-config.kafka-defaults.security-protocol"),
-            parseSaslMechanism(config, "model.library.run-config.kafka-defaults.sasl-mechanism")
+            properties
         );
     }
 
     public KafkaDefaultsResponse toResponse() {
-        return new KafkaDefaultsResponse(bootstrapServers, topic, securityProtocol, saslMechanism);
-    }
-
-    private static KafkaSecurityProtocol parseSecurityProtocol(Config config, String path) {
-        String value = optionalString(config, path);
-        try {
-            return value == null ? null : KafkaSecurityProtocol.fromValue(value);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Invalid Kafka defaults configuration at '" + path + "': " + exception.getMessage(), exception);
-        }
-    }
-
-    private static KafkaSaslMechanism parseSaslMechanism(Config config, String path) {
-        String value = optionalString(config, path);
-        try {
-            return value == null ? null : KafkaSaslMechanism.fromValue(value);
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Invalid Kafka defaults configuration at '" + path + "': " + exception.getMessage(), exception);
-        }
-    }
-
-    private static String optionalString(Config config, String path) {
-        return config.hasPathOrNull(path) && !config.getIsNull(path) ? config.getString(path) : null;
+        return new KafkaDefaultsResponse(topic, properties);
     }
 }

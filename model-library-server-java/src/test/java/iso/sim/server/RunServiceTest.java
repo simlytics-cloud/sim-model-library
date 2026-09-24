@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -111,7 +112,7 @@ class RunServiceTest {
         StartModelRunRequest incompleteCallback = new StartModelRunRequest(
             "run-incomplete-callback",
             objectMapper.createObjectNode(),
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             new CoordinatorHelperCallbackConfigurationDto("http://helper.example", null)
         );
@@ -120,6 +121,19 @@ class RunServiceTest {
             () -> service.startRun("irpsystem.irpmodel.Vehicle", incompleteCallback)
         );
         assertTrue(callbackException.getMessage().contains("coordinatorHelper"));
+
+        StartModelRunRequest missingBootstrapServers = new StartModelRunRequest(
+            "run-no-bootstrap-servers",
+            objectMapper.createObjectNode(),
+            new KafkaConfigurationDto("topic", Map.of("client.id", "client-1")),
+            new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
+            null
+        );
+        InvalidRunRequestException bootstrapServersException = assertThrows(
+            InvalidRunRequestException.class,
+            () -> service.startRun("irpsystem.irpmodel.Vehicle", missingBootstrapServers)
+        );
+        assertTrue(bootstrapServersException.getMessage().contains("bootstrap.servers"));
     }
 
     @Test
@@ -128,7 +142,7 @@ class RunServiceTest {
         StartModelRunRequest unsafe = new StartModelRunRequest(
             "run-safe",
             objectMapper.createObjectNode(),
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance:unsafe", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );
@@ -168,7 +182,7 @@ class RunServiceTest {
         return new StartModelRunRequest(
             runId,
             objectMapper.createObjectNode(),
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );

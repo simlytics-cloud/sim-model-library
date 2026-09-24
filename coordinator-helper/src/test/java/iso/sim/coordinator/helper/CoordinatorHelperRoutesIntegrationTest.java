@@ -59,7 +59,7 @@ class CoordinatorHelperRoutesIntegrationTest {
                 .POST(HttpRequest.BodyPublishers.ofString("""
                     {"modelId":"model-route-1","modelInstanceId":"instance-route-1",
                      "modelLibraryUrl":"http://model-library.example","initializationParameters":{},
-                     "kafka":{"bootstrapServers":"kafka:9092","topic":"simulation-topic"},
+                     "kafka":{"topic":"simulation-topic","properties":{"bootstrap.servers":"kafka:9092"}},
                      "timeMode":{"mode":"virtual-time"},"callbackToken":"callback-token"}
                     """))
                 .build()).statusCode());

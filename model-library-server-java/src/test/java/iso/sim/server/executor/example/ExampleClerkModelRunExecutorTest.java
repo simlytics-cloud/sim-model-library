@@ -25,6 +25,7 @@ import iso.sim.server.runtime.RunHandle;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,7 +43,7 @@ class ExampleClerkModelRunExecutorTest {
         RunExecutionContext context = new RunExecutionContext("run-1", "example-clerk", new StartModelRunRequest(
             "run-1",
             new ObjectMapper().createObjectNode(),
-            new KafkaConfigurationDto("kafka.example:9092", "simulation-topic", null, null, null),
+            new KafkaConfigurationDto("simulation-topic", Map.of("bootstrap.servers", "kafka.example:9092")),
             new SimulationContextDto("simulation-1", "clerk-7", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         ));

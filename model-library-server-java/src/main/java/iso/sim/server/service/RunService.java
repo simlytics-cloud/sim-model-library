@@ -276,8 +276,10 @@ public class RunService {
         if (kafka == null) {
             throw new InvalidRunRequestException("'kafka' is required");
         }
-        if (kafka.getBootstrapServers() == null || kafka.getBootstrapServers().isBlank()) {
-            throw new InvalidRunRequestException("'kafka.bootstrapServers' is required");
+        if (kafka.getProperties() == null
+            || kafka.getProperties().get("bootstrap.servers") == null
+            || kafka.getProperties().get("bootstrap.servers").isBlank()) {
+            throw new InvalidRunRequestException("'kafka.properties.bootstrap.servers' is required");
         }
         if (kafka.getTopic() == null || kafka.getTopic().isBlank()) {
             throw new InvalidRunRequestException("'kafka.topic' is required");

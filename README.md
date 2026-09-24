@@ -24,6 +24,23 @@ coordinator-bound simulation messages. This project does not modify Kafka
 headers, payloads, or control messages in the externally owned simulation
 protocol.
 
+Kafka client settings use native string properties, with `bootstrap.servers`
+required. For example:
+
+```json
+"kafka": {
+  "topic": "simulation.run.001",
+  "properties": {
+    "bootstrap.servers": "kafka.example.com:9092",
+    "security.protocol": "SASL_SSL",
+    "sasl.mechanism": "SCRAM-SHA-512"
+  }
+}
+```
+
+The server ignores a supplied `group.id` and derives it as
+`runId:modelInstanceId`.
+
 An optional, separate HTTP callback is available only when a coordinator helper
 is used:
 

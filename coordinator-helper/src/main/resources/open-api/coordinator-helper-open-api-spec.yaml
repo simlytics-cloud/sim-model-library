@@ -107,40 +107,17 @@ components:
         callbackToken: { type: string, writeOnly: true }
     KafkaConfiguration:
       type: object
-      required: [bootstrapServers, topic]
+      description: Native Kafka client properties for the remote runner. `bootstrap.servers` is required.
+      required: [topic, properties]
       properties:
-        bootstrapServers: { type: string }
         topic: { type: string }
-        securityProtocol: { $ref: '#/components/schemas/KafkaSecurityProtocol' }
-        saslMechanism:
-          oneOf:
-            - { $ref: '#/components/schemas/KafkaSaslMechanism' }
-            - { type: 'null' }
         properties: { type: object, additionalProperties: { type: string } }
-      allOf:
-        - if:
-            required: [securityProtocol]
-            properties:
-              securityProtocol: { enum: [SASL_PLAINTEXT, SASL_SSL] }
-          then:
-            required: [saslMechanism]
-            properties:
-              saslMechanism: { $ref: '#/components/schemas/KafkaSaslMechanism' }
-          else:
-            properties:
-              saslMechanism: { type: 'null' }
-    KafkaSecurityProtocol:
-      type: string
-      enum: [PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL]
-    KafkaSaslMechanism:
-      type: string
-      enum: [GSSAPI, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER]
     TimeMode:
       type: object
       required: [mode]
       properties:
         mode: { type: string, enum: [real-time, scaled-real-time, virtual-time] }
-        realTimeFactor: { type: number }
+        realTimeFactor: { type: [number, 'null'], description: Required for scaled-real-time; otherwise null or omitted. }
     RemoteRunnerEventReport:
       type: object
       required: [runId, modelInstanceId, coordinatorId, eventId, eventType, timestamp]

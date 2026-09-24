@@ -20,29 +20,22 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Map;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class KafkaDefaultsResponse {
-    private final String bootstrapServers;
     private final String topic;
-    private final KafkaSecurityProtocol securityProtocol;
-    private final KafkaSaslMechanism saslMechanism;
+    private final Map<String, String> properties;
 
     @JsonCreator
     public KafkaDefaultsResponse(
-        @JsonProperty("bootstrapServers") String bootstrapServers,
         @JsonProperty("topic") String topic,
-        @JsonProperty("securityProtocol") KafkaSecurityProtocol securityProtocol,
-        @JsonProperty("saslMechanism") KafkaSaslMechanism saslMechanism
+        @JsonProperty("properties") Map<String, String> properties
     ) {
-        this.bootstrapServers = bootstrapServers;
         this.topic = topic;
-        this.securityProtocol = securityProtocol;
-        this.saslMechanism = saslMechanism;
-        KafkaConfigurationDto.validateSaslConfiguration(securityProtocol, saslMechanism);
+        this.properties = properties;
     }
 
-    public String getBootstrapServers() { return bootstrapServers; }
     public String getTopic() { return topic; }
-    public KafkaSecurityProtocol getSecurityProtocol() { return securityProtocol; }
-    public KafkaSaslMechanism getSaslMechanism() { return saslMechanism; }
+    public Map<String, String> getProperties() { return properties; }
 }

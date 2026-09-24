@@ -17,8 +17,6 @@
 package iso.sim.server.service;
 
 import iso.sim.server.dto.run.KafkaConfigurationDto;
-import iso.sim.server.dto.run.KafkaSaslMechanism;
-import iso.sim.server.dto.run.KafkaSecurityProtocol;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
@@ -28,21 +26,21 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DefaultKafkaConsumerAdapterFactoryTest {
 
     @Test
-    void buildConsumerPropertiesIgnoresGroupIdOverrideAndKeepsOtherProperties() {
+    void buildConsumerPropertiesUsesKafkaPropertiesAndKeepsGroupIdServerControlled() {
         DefaultKafkaConsumerAdapterFactory factory = new DefaultKafkaConsumerAdapterFactory();
         KafkaConfigurationDto kafkaConfiguration = new KafkaConfigurationDto(
-            "kafka:9092",
             "topic",
-            KafkaSecurityProtocol.SASL_SSL,
-            KafkaSaslMechanism.SCRAM_SHA_512,
             Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka:9092",
                 ConsumerConfig.GROUP_ID_CONFIG, "attempted-override",
-                ConsumerConfig.CLIENT_ID_CONFIG, "client-42"
+                ConsumerConfig.CLIENT_ID_CONFIG, "client-42",
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                "security.protocol", "SASL_SSL",
+                "sasl.mechanism", "SCRAM-SHA-512"
             )
         );
 
@@ -53,16 +51,7 @@ class DefaultKafkaConsumerAdapterFactoryTest {
         assertEquals("kafka:9092", properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
         assertEquals("SASL_SSL", properties.getProperty("security.protocol"));
         assertEquals("SCRAM-SHA-512", properties.getProperty("sasl.mechanism"));
-    }
-
-    @Test
-    void rejectsInconsistentSaslConfiguration() {
-        assertThrows(IllegalArgumentException.class, () -> new KafkaConfigurationDto(
-            "kafka:9092", "topic", KafkaSecurityProtocol.SASL_SSL, null, null
-        ));
-        assertThrows(IllegalArgumentException.class, () -> new KafkaConfigurationDto(
-            "kafka:9092", "topic", KafkaSecurityProtocol.SSL, KafkaSaslMechanism.PLAIN, null
-        ));
+        assertEquals("earliest", properties.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
     }
 
     @Test

@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import java.util.Map;
 
 class RunLifecycleManagerTest {
 
@@ -96,7 +97,7 @@ class RunLifecycleManagerTest {
         StartModelRunRequest request = new StartModelRunRequest(
             runId,
             null,
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );

@@ -26,6 +26,7 @@ import iso.sim.server.runtime.RunHandle;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +58,7 @@ class RunReadinessProbeTest {
         StartModelRunRequest request = new StartModelRunRequest(
             runId,
             null,
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         );

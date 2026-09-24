@@ -21,7 +21,6 @@ import iso.sim.server.catalog.ModelCatalogService;
 import iso.sim.server.catalog.ModelNotFoundException;
 import iso.sim.server.dto.ErrorResponse;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
-import iso.sim.server.dto.run.KafkaSecurityProtocol;
 import iso.sim.server.dto.run.StartModelRunRequest;
 import iso.sim.server.service.DefaultRunReadinessProbeSelector;
 import iso.sim.server.service.InvalidRunRequestException;
@@ -43,6 +42,7 @@ import org.apache.pekko.http.javadsl.unmarshalling.Unmarshaller;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class ModelLibraryRoutes extends AllDirectives {
     private final ModelCatalogService service;
@@ -55,10 +55,8 @@ public class ModelLibraryRoutes extends AllDirectives {
             service,
             new RunService(service, new DefaultRunReadinessProbeSelector()),
             new KafkaDefaultsResponse(
-                "localhost:9092",
                 "devs-sim",
-                KafkaSecurityProtocol.PLAINTEXT,
-                null
+                Map.of("bootstrap.servers", "localhost:9092", "security.protocol", "PLAINTEXT")
             ),
             new ObjectMapper()
         );
@@ -69,10 +67,8 @@ public class ModelLibraryRoutes extends AllDirectives {
             service,
             runService,
             new KafkaDefaultsResponse(
-                "localhost:9092",
                 "devs-sim",
-                KafkaSecurityProtocol.PLAINTEXT,
-                null
+                Map.of("bootstrap.servers", "localhost:9092", "security.protocol", "PLAINTEXT")
             ),
             new ObjectMapper()
         );

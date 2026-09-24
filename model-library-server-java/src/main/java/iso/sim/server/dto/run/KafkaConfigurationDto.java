@@ -24,40 +24,18 @@ import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class KafkaConfigurationDto {
-    private final String bootstrapServers;
     private final String topic;
-    private final KafkaSecurityProtocol securityProtocol;
-    private final KafkaSaslMechanism saslMechanism;
     private final Map<String, String> properties;
 
     @JsonCreator
     public KafkaConfigurationDto(
-        @JsonProperty("bootstrapServers") String bootstrapServers,
         @JsonProperty("topic") String topic,
-        @JsonProperty("securityProtocol") KafkaSecurityProtocol securityProtocol,
-        @JsonProperty("saslMechanism") KafkaSaslMechanism saslMechanism,
         @JsonProperty("properties") Map<String, String> properties
     ) {
-        this.bootstrapServers = bootstrapServers;
         this.topic = topic;
-        this.securityProtocol = securityProtocol;
-        this.saslMechanism = saslMechanism;
         this.properties = properties;
-        validateSaslConfiguration(securityProtocol, saslMechanism);
     }
 
-    public String getBootstrapServers() { return bootstrapServers; }
     public String getTopic() { return topic; }
-    public KafkaSecurityProtocol getSecurityProtocol() { return securityProtocol; }
-    public KafkaSaslMechanism getSaslMechanism() { return saslMechanism; }
     public Map<String, String> getProperties() { return properties; }
-
-    public static void validateSaslConfiguration(KafkaSecurityProtocol securityProtocol, KafkaSaslMechanism saslMechanism) {
-        if (securityProtocol != null && securityProtocol.usesSasl() && saslMechanism == null) {
-            throw new IllegalArgumentException("'kafka.saslMechanism' is required when 'kafka.securityProtocol' uses SASL");
-        }
-        if ((securityProtocol == null || !securityProtocol.usesSasl()) && saslMechanism != null) {
-            throw new IllegalArgumentException("'kafka.saslMechanism' must be omitted or null unless 'kafka.securityProtocol' uses SASL");
-        }
-    }
 }

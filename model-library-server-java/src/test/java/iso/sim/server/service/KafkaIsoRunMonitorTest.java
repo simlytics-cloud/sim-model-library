@@ -93,7 +93,7 @@ class KafkaIsoRunMonitorTest {
         return new RunExecutionContext(runId, "model", new StartModelRunRequest(
             runId,
             new ObjectMapper().createObjectNode(),
-            new KafkaConfigurationDto("kafka:9092", "topic", null, null, null),
+            new KafkaConfigurationDto("topic", Map.of("bootstrap.servers", "kafka:9092")),
             new SimulationContextDto("simulation-1", "instance-1", "coordinator-1", new TimeModeDto(TimeMode.VIRTUAL_TIME)),
             null
         ));

@@ -291,8 +291,11 @@ public class CoordinatedRunService {
         if (request.initializationParameters() == null) {
             throw new CoordinatedRunRequestException("'initializationParameters' is required");
         }
-        if (request.kafka() == null || request.kafka().bootstrapServers() == null || request.kafka().bootstrapServers().isBlank()) {
-            throw new CoordinatedRunRequestException("'kafka.bootstrapServers' is required");
+        if (request.kafka() == null
+            || request.kafka().properties() == null
+            || request.kafka().properties().get("bootstrap.servers") == null
+            || request.kafka().properties().get("bootstrap.servers").isBlank()) {
+            throw new CoordinatedRunRequestException("'kafka.properties.bootstrap.servers' is required");
         }
         if (request.kafka().topic() == null || request.kafka().topic().isBlank()) {
             throw new CoordinatedRunRequestException("'kafka.topic' is required");

@@ -304,14 +304,11 @@ components:
         Caller-supplied Kafka transport settings for the remote model runner.
         The consumer group ID is not caller-configurable; at runtime it is always
         derived as `runId:receiverId`, giving each receiver stable run-scoped offset
-        tracking. Callers must not set `group.id` in Kafka client configuration.
+        tracking. A supplied `group.id` is ignored in favor of that derived value.
       required:
-        - bootstrapServers
         - topic
+        - properties
       properties:
-        bootstrapServers:
-          type: string
-          example: kafka.example.com:9092
         topic:
           type: string
           description: |
@@ -319,33 +316,11 @@ components:
             runId-based record keying and `X-Run-Id` header filtering, not by creating
             dedicated per-run topics.
           example: simulation.run.001
-        securityProtocol:
-          $ref: '#/components/schemas/KafkaSecurityProtocol'
-          example: SASL_SSL
-        saslMechanism:
-          oneOf:
-            - $ref: '#/components/schemas/KafkaSaslMechanism'
-            - type: 'null'
-          example: SCRAM-SHA-512
         properties:
           type: object
+          description: Native Kafka client properties. `bootstrap.servers` is required.
           additionalProperties:
             type: string
-      allOf:
-        - if:
-            required: [securityProtocol]
-            properties:
-              securityProtocol:
-                enum: [SASL_PLAINTEXT, SASL_SSL]
-          then:
-            required: [saslMechanism]
-            properties:
-              saslMechanism:
-                $ref: '#/components/schemas/KafkaSaslMechanism'
-          else:
-            properties:
-              saslMechanism:
-                type: 'null'
 
     SimulationContext:
       type: object
@@ -392,9 +367,9 @@ components:
           $ref: '#/components/schemas/TimeModeType'
           description: Runtime pacing mode independent from logical time representation.
         realTimeFactor:
-          type: number
+          type: [number, 'null']
           format: double
-          description: Scaling factor for `scaled-real-time` mode (for example, `2.0` runs at 2x wall-clock speed).
+          description: Required for `scaled-real-time`; otherwise null or omitted. Scaling factor for `scaled-real-time` mode (for example, `2.0` runs at 2x wall-clock speed).
           example: 2.0
       allOf:
         - if:
@@ -483,48 +458,17 @@ components:
         Consumer group ID is not included because it is derived at runtime as
         `runId:receiverId` and is not caller-configurable.
       required:
-        - bootstrapServers
         - topic
-        - securityProtocol
-        - saslMechanism
+        - properties
       properties:
-        bootstrapServers:
-          type: string
-          example: localhost:9092
         topic:
           type: string
           example: devs-sim
-        securityProtocol:
-          $ref: '#/components/schemas/KafkaSecurityProtocol'
-          example: PLAINTEXT
-        saslMechanism:
-          oneOf:
-            - $ref: '#/components/schemas/KafkaSaslMechanism'
-            - type: 'null'
-          example: null
-      allOf:
-        - if:
-            required: [securityProtocol]
-            properties:
-              securityProtocol:
-                enum: [SASL_PLAINTEXT, SASL_SSL]
-          then:
-            required: [saslMechanism]
-            properties:
-              saslMechanism:
-                $ref: '#/components/schemas/KafkaSaslMechanism'
-          else:
-            properties:
-              saslMechanism:
-                type: 'null'
-
-    KafkaSecurityProtocol:
-      type: string
-      enum: [PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL]
-
-    KafkaSaslMechanism:
-      type: string
-      enum: [GSSAPI, PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER]
+        properties:
+          type: object
+          description: Native Kafka client properties, including `bootstrap.servers`.
+          additionalProperties:
+            type: string
 
     CurrentSimulationTime:
       type: object

@@ -20,9 +20,11 @@
     }
   },
   "kafka": {
-    "bootstrapServers": "kafka.example.com:9092",
     "topic": "irp-system",
-    "securityProtocol": "PLAINTEXT"
+    "properties": {
+      "bootstrap.servers": "kafka.example.com:9092",
+      "security.protocol": "PLAINTEXT"
+    }
   },
   "simulation": {
     "simulationId": "sim-irp-001",

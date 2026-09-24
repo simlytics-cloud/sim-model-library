@@ -26,7 +26,6 @@ import iso.sim.server.dto.catalog.ModelListResponse;
 import iso.sim.server.dto.catalog.ModelDto;
 import iso.sim.server.dto.run.CurrentSimulationTimeDto;
 import iso.sim.server.dto.run.KafkaDefaultsResponse;
-import iso.sim.server.dto.run.KafkaSecurityProtocol;
 import iso.sim.server.dto.run.RunStatusResponse;
 import iso.sim.server.dto.run.StartModelRunResponse;
 import iso.sim.server.dto.run.TimeMode;
@@ -50,6 +49,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -85,10 +85,8 @@ class ModelLibraryRoutesIntegrationTest {
             service,
             runService,
             new KafkaDefaultsResponse(
-                "localhost:9092",
                 "devs-sim",
-                KafkaSecurityProtocol.PLAINTEXT,
-                null
+                Map.of("bootstrap.servers", "localhost:9092", "security.protocol", "PLAINTEXT")
             ),
             objectMapper
         ).routes();
@@ -194,7 +192,7 @@ class ModelLibraryRoutesIntegrationTest {
                 .build());
             assertEquals(200, kafkaDefaultsResponse.statusCode());
             JsonNode kafkaDefaults = objectMapper.readTree(kafkaDefaultsResponse.body());
-            assertEquals("localhost:9092", kafkaDefaults.path("bootstrapServers").asText());
+            assertEquals("localhost:9092", kafkaDefaults.path("properties").path("bootstrap.servers").asText());
             assertEquals("devs-sim", kafkaDefaults.path("topic").asText());
             assertTrue(kafkaDefaults.path("consumerGroup").isMissingNode());
 

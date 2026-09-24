@@ -5,7 +5,6 @@ import iso.sim.coordinator.helper.dto.CoordinatedRunStatusResponse;
 import iso.sim.coordinator.helper.dto.CoordinatorEventReport;
 import iso.sim.coordinator.helper.dto.CreateCoordinatedRunRequest;
 import iso.sim.coordinator.helper.dto.KafkaConfigurationDto;
-import iso.sim.coordinator.helper.dto.KafkaSecurityProtocol;
 import iso.sim.coordinator.helper.dto.RegisterRemoteRunnerRequest;
 import iso.sim.coordinator.helper.dto.RemoteRunnerEventReport;
 import iso.sim.coordinator.helper.dto.TimeModeConfigurationDto;
@@ -13,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -129,7 +129,7 @@ class CoordinatedRunServiceTest {
             instanceId,
             "https://model-library.example",
             objectMapper.createObjectNode().put("example", true),
-            new KafkaConfigurationDto("kafka.example:9092", "simulation-topic", KafkaSecurityProtocol.PLAINTEXT, null, null),
+            new KafkaConfigurationDto("simulation-topic", Map.of("bootstrap.servers", "kafka.example:9092")),
             new TimeModeConfigurationDto("virtual-time", null),
             "callback-token"
         );

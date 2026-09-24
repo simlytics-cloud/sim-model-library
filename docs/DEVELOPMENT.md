@@ -28,8 +28,11 @@ execution, `modelInstanceId` is the remote runner receiver identity, and
 - `GET /v1/runs`, `GET` and `DELETE /v1/runs/{runId}`
 - `GET /v1/run-config/defaults`
 
-The start request requires direct `kafka.bootstrapServers` and `kafka.topic`,
-plus the required run and simulation identities including `timeMode`. `coordinatorHelper` is
+The start request requires `kafka.topic` and
+`kafka.properties["bootstrap.servers"]`, plus the required run and simulation
+identities including `timeMode`. The properties map uses native Kafka client
+keys such as `security.protocol`, `sasl.mechanism`, and `sasl.jaas.config`;
+the server derives `group.id` as `runId:modelInstanceId`. `coordinatorHelper` is
 optional and, if supplied, requires both `endpoint` and `token`. It is strictly
 an HTTP callback control-plane configuration; it never changes the Kafka
 transport contract.

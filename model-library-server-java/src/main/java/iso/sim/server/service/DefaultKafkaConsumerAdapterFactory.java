@@ -44,7 +44,7 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
         logger.info(() -> "Creating Kafka consumer for runId=" + runId
             + ", topic=" + topic
             + ", consumerGroup=" + consumerGroup
-            + ", bootstrapServers=" + kafkaConfig.getBootstrapServers()
+            + ", bootstrapServers=" + properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
             + ", autoOffsetReset=" + properties.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG));
 
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
@@ -79,19 +79,10 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
 
     Properties buildConsumerProperties(KafkaConfigurationDto kafkaConfig, String consumerGroup) {
         Properties properties = new Properties();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-
-        if (kafkaConfig.getSecurityProtocol() != null) {
-            properties.put("security.protocol", kafkaConfig.getSecurityProtocol().getValue());
-        }
-        if (kafkaConfig.getSaslMechanism() != null) {
-            properties.put("sasl.mechanism", kafkaConfig.getSaslMechanism().getValue());
-        }
         if (kafkaConfig.getProperties() != null) {
             for (Map.Entry<String, String> entry : kafkaConfig.getProperties().entrySet()) {
                 if (ConsumerConfig.GROUP_ID_CONFIG.equals(entry.getKey())) {
@@ -101,6 +92,7 @@ public class DefaultKafkaConsumerAdapterFactory implements KafkaConsumerAdapterF
                 properties.put(entry.getKey(), entry.getValue());
             }
         }
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroup);
         return properties;
     }
 }
