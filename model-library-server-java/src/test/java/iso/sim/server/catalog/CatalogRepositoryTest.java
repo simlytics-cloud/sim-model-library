@@ -20,9 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.ConfigFactory;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CatalogRepositoryTest {
     @Test
-    void loadsCatalogFromConfiguredFilesystemPath() {
+    void loadsCatalogFromConfiguredClasspathResource() {
         CatalogRepository repository = new CatalogRepository(
             List.of(testCatalogPath()),
             new ObjectMapper()
@@ -67,8 +65,6 @@ class CatalogRepositoryTest {
     }
 
     private static String testCatalogPath() {
-        return Path.of(Objects.requireNonNull(
-            CatalogRepositoryTest.class.getResource("/model-catalog.json")
-        ).getPath()).toString();
+        return "classpath:model-catalog.json";
     }
 }

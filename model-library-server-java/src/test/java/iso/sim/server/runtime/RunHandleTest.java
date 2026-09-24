@@ -16,6 +16,7 @@
 
 package iso.sim.server.runtime;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled("Requires Mac or Linux OS for /bin/sh")
 class RunHandleTest {
 
     @Test
