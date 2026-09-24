@@ -34,11 +34,9 @@ import iso.sim.server.service.RunService;
 import iso.sim.server.store.InMemoryRunStatusStore;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -189,6 +187,6 @@ class RunServiceTest {
     }
 
     private static String testCatalogPath() {
-        return Path.of(Objects.requireNonNull(RunServiceTest.class.getResource("/model-catalog.json")).getPath()).toString();
+        return "classpath:model-catalog.json";
     }
 }
